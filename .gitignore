@@ -1,0 +1,10 @@
+/var/
+.env.local
+.phpunit.result.cache
+.DS_*
+.DS_Store
+**/.DS_Store
+/vendor/
+/node_modules/
+.env.local
+.env.*.local
