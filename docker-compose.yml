@@ -1,0 +1,38 @@
+services:
+    app:
+        build:
+            context: .
+            args:
+                UID: ${UID:-1000}
+                GID: ${GID:-1000}
+        working_dir: /app
+        volumes:
+            - .:/app
+        ports:
+            - "8000:8000"
+        environment:
+            APP_ENV: dev
+            APP_DEBUG: "1"
+            DATABASE_URL: "postgresql://advisor:advisor@db:5432/advisor_app?serverVersion=17&charset=utf8"
+        depends_on:
+            db:
+                condition: service_healthy
+
+    db:
+        image: postgres:17-alpine
+        environment:
+            POSTGRES_DB: advisor_app
+            POSTGRES_USER: advisor
+            POSTGRES_PASSWORD: advisor
+        ports:
+            - "5432:5432"
+        volumes:
+            - postgres-data:/var/lib/postgresql/data
+        healthcheck:
+            test: ["CMD-SHELL", "pg_isready -U advisor -d advisor_app"]
+            interval: 5s
+            timeout: 5s
+            retries: 20
+
+volumes:
+    postgres-data:

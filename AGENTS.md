@@ -10,15 +10,19 @@ Tu trabajo es **implementar de forma controlada**, no rediseñar producto ni reh
 
 Usa en este orden:
 
-1. `docs/context/`
+1. `AGENTS.md` raíz
 2. `AGENTS.md` del módulo afectado
 3. `tests/AGENTS.md` cuando toque testing
-4. este `AGENTS.md` raíz
+4. `docs/context/`
 5. `.cursor/skills/`
 6. `.cursor/commands/`
 7. prompt puntual del usuario
 
-Si algo entra en conflicto, manda el nivel superior.
+`docs/context/` contiene resúmenes operativos derivados de las fuentes maestras. No sustituye a las fuentes maestras del proyecto de arquitectura.
+
+Si falta detalle o aparece contradicción con una fuente maestra externa al repo, prevalece la jerarquía de fuentes maestras definida en el proyecto de arquitectura.
+
+Si hay conflicto entre reglas locales del repo, manda el nivel superior de esta lista.
 
 ## Qué está cerrado
 
@@ -103,6 +107,10 @@ Los controladores deben ser finos.
 A nivel arquitectónico hablamos de puertos; en PHP normalmente se materializan como `interface`.
 
 Por defecto, el puerto lo define el consumidor.
+
+Por convención del proyecto, las interfaces de puertos y repositorios viven en `Application/Port`, incluso cuando están fuertemente ligadas a un agregado de dominio.
+
+El dominio puede aparecer en las firmas del contrato, pero el contrato pertenece a la capa de aplicación porque lo consumen los casos de uso.
 
 Crea puerto cuando haya:
 

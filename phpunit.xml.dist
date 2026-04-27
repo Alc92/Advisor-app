@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<phpunit
+    bootstrap="vendor/autoload.php"
+    colors="true"
+    cacheDirectory=".phpunit.cache"
+    executionOrder="depends,defects"
+    failOnDeprecation="true"
+    failOnNotice="true"
+    failOnWarning="true"
+>
+    <php>
+        <env name="APP_ENV" value="test"/>
+        <env name="APP_DEBUG" value="1"/>
+        <env name="DATABASE_URL" value="postgresql://advisor:advisor@db:5432/advisor_app_test?serverVersion=17&amp;charset=utf8"/>
+    </php>
+
+    <testsuites>
+        <testsuite name="Unit">
+            <directory>tests/Unit</directory>
+        </testsuite>
+        <testsuite name="Integration">
+            <directory>tests/Integration</directory>
+        </testsuite>
+        <testsuite name="Acceptance">
+            <directory>tests/Acceptance</directory>
+        </testsuite>
+    </testsuites>
+
+    <source>
+        <include>
+            <directory>src</directory>
+        </include>
+    </source>
+</phpunit>
