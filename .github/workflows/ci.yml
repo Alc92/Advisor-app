@@ -1,0 +1,56 @@
+name: CI
+
+on:
+    push:
+        branches:
+            - main
+            - develop
+    pull_request:
+
+jobs:
+    quality:
+        name: Quality checks
+        runs-on: ubuntu-latest
+
+        services:
+            postgres:
+                image: postgres:17-alpine
+                env:
+                    POSTGRES_DB: advisor_app_test
+                    POSTGRES_USER: advisor
+                    POSTGRES_PASSWORD: advisor
+                ports:
+                    - 5432:5432
+                options: >-
+                    --health-cmd "pg_isready -U advisor -d advisor_app_test"
+                    --health-interval 5s
+                    --health-timeout 5s
+                    --health-retries 20
+
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v4
+
+            - name: Setup PHP
+              uses: shivammathur/setup-php@v2
+              with:
+                  php-version: '8.4'
+                  extensions: intl, pdo, pdo_pgsql, zip
+                  coverage: none
+                  tools: composer:v2
+
+            - name: Validate composer
+              run: composer validate --strict
+
+            - name: Install dependencies
+              run: composer install --prefer-dist --no-progress --no-interaction
+
+            - name: PHP-CS-Fixer dry run
+              run: vendor/bin/php-cs-fixer fix --dry-run --diff --config=.php-cs-fixer.dist.php
+
+            - name: PHPUnit
+              env:
+                  APP_ENV: test
+                  APP_DEBUG: '1'
+                  DATABASE_URL: postgresql://advisor:advisor@127.0.0.1:5432/advisor_app_test?serverVersion=17&charset=utf8
+              run: vendor/bin/php-cs-fixer fix --dry-run --diff --allow-risky=yes --config=.php-cs-fixer.dist.php

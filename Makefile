@@ -43,3 +43,26 @@ test-acceptance:
 
 smoke:
 	$(APP) composer smoke
+
+.PHONY: cs-check cs-fix quality grumphp grumphp-git-hooks
+
+cs-check:
+	$(APP) composer cs:check
+
+cs-fix:
+	$(APP) composer cs:fix
+
+quality:
+	$(APP) composer quality
+
+.PHONY: precommit install-git-hooks
+
+precommit:
+	$(APP) composer validate --no-check-publish
+	$(APP) composer cs:check
+	$(APP) composer test:unit
+
+install-git-hooks:
+	@printf '%s\n' '#!/bin/sh' '' 'set -e' '' 'echo "Running pre-commit checks inside Docker..."' '' 'docker compose exec -T app composer validate --no-check-publish' 'docker compose exec -T app composer cs:check' 'docker compose exec -T app composer test:unit' '' 'echo "Pre-commit checks passed."' > .git/hooks/pre-commit
+	@chmod +x .git/hooks/pre-commit
+	@echo "Installed Docker-based pre-commit hook."
