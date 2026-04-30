@@ -197,3 +197,11 @@ Prioriza siempre:
 - bajo acoplamiento real
 - testing útil
 - mínima ceremonia
+
+## Migraciones y persistencia
+
+No se introduce ORM como eje del modelo.
+
+Las migraciones se añadirán cuando exista el primer corte persistente real. Podrán usarse como herramienta de versionado de esquema, pero no implican adoptar ORM ni entidades activas acopladas a base de datos.
+
+La persistencia debe seguir siendo explícita y alineada con los puertos de aplicación.

@@ -82,6 +82,80 @@ make down
 - No duplicar las fuentes maestras `00`–`09` dentro de este repo.
 - `docs/context/` contiene resúmenes derivados y debe mantenerse corto.
 
+## Variables locales
+
+El proyecto incluye `.env.local.example` como plantilla de configuración local.
+
+Para sobrescribir valores locales:
+
+```bash
+cp .env.local.example .env.local
+```
+
+Nunca versionar secretos reales en `.env.local`.
+
+`.env.local` y `.env.*.local` deben permanecer ignorados por Git.
+
+## Calidad local
+
+Comprobar estilo:
+
+```bash
+make cs-check
+```
+
+Corregir estilo:
+
+```bash
+make cs-fix
+```
+
+Ejecutar tests:
+
+```bash
+make test
+```
+
+Ejecutar checks completos:
+
+```bash
+make quality
+```
+
+Instalar hook local de pre-commit:
+
+```bash
+make install-git-hooks
+```
+
+El hook ejecuta dentro de Docker:
+
+- validación básica de Composer
+- PHP-CS-Fixer en modo dry-run
+- tests unitarios
+
+## Convención de commits
+
+Usar mensajes breves en inglés, en imperativo o descripción directa.
+
+Ejemplos:
+
+```text
+Prepare technical bootstrap
+Add local and CI quality gates
+Add repository governance basics
+Implement assessment input snapshot
+Add catalog publication persistence
+```
+
+Evitar commits que mezclen:
+
+- feature + refactor
+- tooling + dominio
+- persistencia + UI
+- cambios masivos sin plan
+
+
 ## Generar un zip limpio del repositorio
 
 Para generar un zip limpio del estado versionado del repositorio, sin `vendor/`, `.git/`, cachés ni archivos locales:
