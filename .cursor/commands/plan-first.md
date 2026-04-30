@@ -15,3 +15,16 @@ Reglas:
 - no implementes aún
 - no inventes arquitectura nueva
 - elige el cambio más pequeño compatible con el objetivo
+
+## Secuencias de prompts
+
+Si el plan se va a dividir en varios prompts, cada prompt propuesto debe ser autocontenido.
+
+No uses pasos que dependan de memoria implícita de prompts anteriores. Cada paso debe incluir:
+- contexto mínimo
+- objetivo del paso
+- fuentes aplicables
+- no debe romper
+- puede tocar / no tocar
+- criterios de aceptación
+- testing esperado

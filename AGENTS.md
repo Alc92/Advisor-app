@@ -205,3 +205,11 @@ No se introduce ORM como eje del modelo.
 Las migraciones se añadirán cuando exista el primer corte persistente real. Podrán usarse como herramienta de versionado de esquema, pero no implican adoptar ORM ni entidades activas acopladas a base de datos.
 
 La persistencia debe seguir siendo explícita y alineada con los puertos de aplicación.
+
+## Regla de prompts autocontenidos
+
+Los prompts de implementación deben ser ejecutables de forma independiente.
+
+Si una tarea forma parte de una secuencia, no debe depender de memoria implícita de pasos anteriores. Debe declarar el contexto mínimo necesario, fuentes aplicables, reglas que no debe romper, módulos afectados, archivos permitidos/no permitidos, criterios de aceptación y testing esperado.
+
+Si el prompt usa expresiones como “continúa con lo anterior” sin resumir el contexto necesario, primero debe pedirse aclaración o plan antes de modificar código.
