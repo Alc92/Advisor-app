@@ -14,11 +14,16 @@ use InvalidArgumentException;
 final readonly class InputQuality
 {
     /**
+     * @var list<UncertaintyFlag>
+     */
+    private array $uncertaintyFlags;
+
+    /**
      * @param list<UncertaintyFlag> $uncertaintyFlags
      */
     public function __construct(
         private CompletenessLevel $completenessLevel,
-        private array $uncertaintyFlags,
+        array $uncertaintyFlags,
     ) {
         foreach ($uncertaintyFlags as $flag) {
             if (!$flag instanceof UncertaintyFlag) {
