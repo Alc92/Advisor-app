@@ -33,13 +33,15 @@ final class CatalogPublication
         ?DateTimeImmutable $publishedAt,
         array $items,
     ) {
-        $this->validateInvariantStatusPublishedAt($status, $publishedAt);
+        $validatedItems = $this->validateItems($items, $id);
+
+        $this->validateInvariantStatusPublishedAt($status, $publishedAt, $validatedItems);
 
         $this->id = $id;
         $this->version = $version;
         $this->status = $status;
         $this->publishedAt = $publishedAt;
-        $this->items = $this->validateItems($items);
+        $this->items = $validatedItems;
     }
 
     public static function createDraft(
@@ -121,7 +123,7 @@ final class CatalogPublication
      * @param list<CatalogPublicationItem> $items
      * @return list<CatalogPublicationItem>
      */
-    private function validateItems(array $items): array
+    private function validateItems(array $items, CatalogPublicationId $publicationId): array
     {
         $result = [];
         $seenIds = [];
@@ -131,7 +133,7 @@ final class CatalogPublication
                 throw new InvalidArgumentException('Each item must be a CatalogPublicationItem.');
             }
 
-            if ($item->catalogPublicationId()->toString() !== $this->id->toString()) {
+            if ($item->catalogPublicationId()->toString() !== $publicationId->toString()) {
                 throw new InvalidArgumentException('Item must belong to this publication.');
             }
 
@@ -148,9 +150,13 @@ final class CatalogPublication
         return array_values($result);
     }
 
+    /**
+     * @param list<CatalogPublicationItem> $items
+     */
     private function validateInvariantStatusPublishedAt(
         CatalogPublicationStatus $status,
         ?DateTimeImmutable $publishedAt,
+        array $items,
     ): void {
         if ($status === CatalogPublicationStatus::DRAFT && $publishedAt !== null) {
             throw new InvalidArgumentException('DRAFT publication must have null publishedAt.');
@@ -158,6 +164,10 @@ final class CatalogPublication
 
         if ($status === CatalogPublicationStatus::PUBLISHED && $publishedAt === null) {
             throw new InvalidArgumentException('PUBLISHED publication must have a publishedAt.');
+        }
+
+        if ($status === CatalogPublicationStatus::PUBLISHED && count($items) === 0) {
+            throw new InvalidArgumentException('PUBLISHED publication must have at least one item.');
         }
     }
 }
