@@ -1,0 +1,14 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Advisor\Domain\Enum;
+
+enum DiscardReasonCode: string
+{
+    case INSUFFICIENT_FIT = 'INSUFFICIENT_FIT';
+    case FRICTION_TOO_HIGH = 'FRICTION_TOO_HIGH';
+    case INSUFFICIENT_IMPROVEMENT = 'INSUFFICIENT_IMPROVEMENT';
+    case UNACCEPTABLE_TRADEOFF = 'UNACCEPTABLE_TRADEOFF';
+    case ASYMMETRIC_LINES_MISMATCH = 'ASYMMETRIC_LINES_MISMATCH';
+}
