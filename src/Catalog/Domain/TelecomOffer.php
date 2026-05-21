@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Catalog\Domain;
 
-use App\Catalog\Domain\Enum\ProductType;
+use App\Advisor\Domain\Enum\ProductType;
 use App\Catalog\Domain\ValueObject\TelecomOfferId;
 use DateTimeImmutable;
 use InvalidArgumentException;
