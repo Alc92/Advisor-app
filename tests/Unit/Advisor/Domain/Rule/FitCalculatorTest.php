@@ -9,7 +9,6 @@ use App\Advisor\Domain\Assessment\CurrentSituation;
 use App\Advisor\Domain\Enum\CommitmentStatus;
 use App\Advisor\Domain\Enum\DataProvenance;
 use App\Advisor\Domain\Enum\FiberNeedBand;
-use App\Advisor\Domain\Enum\FiberSpeedBandCurrent;
 use App\Advisor\Domain\Enum\FitLevel;
 use App\Advisor\Domain\Enum\MobileUsageBand;
 use App\Advisor\Domain\Enum\ProductType;
