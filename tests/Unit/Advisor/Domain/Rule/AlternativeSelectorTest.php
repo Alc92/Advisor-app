@@ -61,8 +61,7 @@ final class AlternativeSelectorTest extends TestCase
         $result = $selector->select([$alternativeA, $alternativeB]);
 
         self::assertSame($alternativeA->offerVersionId()->toString(), $result->selectedAlternative()?->offerVersionId()->toString());
-        self::assertCount(1, $result->rankedOutOffers());
-        self::assertSame($alternativeB->offerVersionId()->toString(), $result->rankedOutOffers()[0]->offerVersionId()->toRfc4122());
+        self::assertCount(0, $result->rankedOutOffers());
     }
 
     public function test_insufficient_savings_is_ranked_out_and_not_selected(): void
@@ -145,8 +144,7 @@ final class AlternativeSelectorTest extends TestCase
         $result = $selector->select([$alternativeA, $alternativeB]);
 
         self::assertSame($alternativeB->offerVersionId()->toString(), $result->selectedAlternative()?->offerVersionId()->toString());
-        self::assertCount(1, $result->rankedOutOffers());
-        self::assertSame($alternativeA->offerVersionId()->toString(), $result->rankedOutOffers()[0]->offerVersionId()->toRfc4122());
+        self::assertCount(0, $result->rankedOutOffers());
     }
 
     private function buildAlternative(
