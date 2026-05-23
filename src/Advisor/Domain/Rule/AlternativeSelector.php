@@ -125,15 +125,6 @@ final class AlternativeSelector
 
         /** @var AlternativeEvaluation $selectedAlternative */
         $selectedAlternative = $candidates[0]['alternative'];
-        for ($i = 1, $count = count($candidates); $i < $count; $i++) {
-            /** @var AlternativeEvaluation $rankedOutAlternative */
-            $rankedOutAlternative = $candidates[$i]['alternative'];
-
-            $rankedOutOffers[] = new RankedOutOfferTrace(
-                $rankedOutAlternative->offerVersionId()->value(),
-                [DiscardReasonCode::INSUFFICIENT_IMPROVEMENT],
-            );
-        }
 
         return new AlternativeSelectionResult(
             $selectedAlternative,
