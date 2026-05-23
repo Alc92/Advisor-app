@@ -8,7 +8,6 @@ use App\Advisor\Domain\Enum\MobileUsageBand;
 use App\Advisor\Domain\Enum\ProductType;
 use App\Advisor\Domain\ValueObject\Money;
 use App\Catalog\Domain\Enum\FiberCapacityBand;
-use App\Catalog\Domain\ValueObject\TelecomOfferVersionId;
 use InvalidArgumentException;
 
 final readonly class PublishedOfferVersionForEvaluation
@@ -16,9 +15,10 @@ final readonly class PublishedOfferVersionForEvaluation
     private string $provider;
     private string $commercialName;
     private ?string $mobileDataDisplay;
+    private string $offerVersionId;
 
     public function __construct(
-        private TelecomOfferVersionId $offerVersionId,
+        string $offerVersionId,
         string $provider,
         string $commercialName,
         private Money $monthlyPrice,
@@ -32,7 +32,8 @@ final readonly class PublishedOfferVersionForEvaluation
         private bool $fiberIncluded,
         private bool $asymmetricLines,
     ) {
-        if (trim($this->offerVersionId->toString()) === '') {
+        $trimmedOfferVersionId = trim($offerVersionId);
+        if ($trimmedOfferVersionId === '') {
             throw new InvalidArgumentException('offerVersionId cannot be empty.');
         }
 
@@ -46,20 +47,21 @@ final readonly class PublishedOfferVersionForEvaluation
             throw new InvalidArgumentException('commercialName cannot be empty.');
         }
 
-        if ($this->mobileLinesIncluded <= 0) {
-            throw new InvalidArgumentException('mobileLinesIncluded must be greater than 0.');
+        if ($this->mobileLinesIncluded < 0) {
+            throw new InvalidArgumentException('mobileLinesIncluded must be greater than or equal to 0.');
         }
 
         if ($this->fiberSpeedMbps !== null && $this->fiberSpeedMbps <= 0) {
             throw new InvalidArgumentException('fiberSpeedMbps must be greater than 0 when provided.');
         }
 
+        $this->offerVersionId = $trimmedOfferVersionId;
         $this->provider = $trimmedProvider;
         $this->commercialName = $trimmedCommercialName;
         $this->mobileDataDisplay = $mobileDataDisplay !== null ? trim($mobileDataDisplay) : null;
     }
 
-    public function offerVersionId(): TelecomOfferVersionId
+    public function offerVersionId(): string
     {
         return $this->offerVersionId;
     }
