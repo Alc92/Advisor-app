@@ -27,6 +27,9 @@ final class StayRecommendationBuilder
             throw new InvalidArgumentException('Main explanation cannot be empty.');
         }
 
+        $this->assertStringList($tradeOffs, 'tradeOffs');
+        $this->assertStringList($risks, 'risks');
+
         if ($estimatedImpact->impactType() !== ImpactType::NO_CLEAR_IMPACT) {
             throw new InvalidArgumentException('Insufficient improvement requires NO_CLEAR_IMPACT impact type.');
         }
@@ -68,6 +71,9 @@ final class StayRecommendationBuilder
             throw new InvalidArgumentException('Main explanation cannot be empty.');
         }
 
+        $this->assertStringList($tradeOffs, 'tradeOffs');
+        $this->assertStringList($risks, 'risks');
+
         if (count($tradeOffs) === 0) {
             throw new InvalidArgumentException('Trade-offs cannot be empty.');
         }
@@ -100,6 +106,8 @@ final class StayRecommendationBuilder
             throw new InvalidArgumentException('Main explanation cannot be empty.');
         }
 
+        $this->assertStringList($risks, 'risks');
+
         $estimatedImpact = new EstimatedImpact(
             monthlySavingsEstimate: null,
             relativeSavingsEstimate: null,
@@ -122,6 +130,26 @@ final class StayRecommendationBuilder
             recommendedReviewMoment: null,
             reviewTrigger: null,
         );
+    }
+
+    /**
+     * @param array<mixed> $values
+     */
+    private function assertStringList(array $values, string $fieldName): void
+    {
+        if (!array_is_list($values)) {
+            throw new InvalidArgumentException("{$fieldName} must be a list.");
+        }
+
+        foreach ($values as $item) {
+            if (!is_string($item)) {
+                throw new InvalidArgumentException("Each item in {$fieldName} must be a string.");
+            }
+
+            if (trim($item) === '') {
+                throw new InvalidArgumentException("Items in {$fieldName} cannot be empty.");
+            }
+        }
     }
 
     private function amountToCents(string $amount): int

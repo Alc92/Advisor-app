@@ -124,4 +124,17 @@ final class StayRecommendationBuilderTest extends TestCase
             'No debería llegar aquí.',
         );
     }
+
+    public function test_non_string_list_values_are_rejected(): void
+    {
+        $builder = new StayRecommendationBuilder();
+
+        $this->expectException(InvalidArgumentException::class);
+
+        $builder->buildForInsufficientImprovement(
+            new EstimatedImpact(null, null, ImpactType::NO_CLEAR_IMPACT, 'Ahorro insuficiente.'),
+            'No compensa.',
+            ['válido', 123],
+        );
+    }
 }
