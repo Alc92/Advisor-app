@@ -213,6 +213,33 @@ final class SwitchRecommendationBuilderTest extends TestCase
         self::assertSame($commercialData->mobileDataDisplay(), $snapshot->mobileDataDisplay());
     }
 
+    public function test_insufficient_impact_cannot_build_switch(): void
+    {
+        $builder = new SwitchRecommendationBuilder();
+        $offerId = TelecomOfferId::fromUuid(Uuid::v4());
+        $offer = $this->buildOffer($offerId, 'Provider A', 'Fiber Plan 300');
+        $offerVersion = $this->buildFiberVersion($offer, 300, '49.99');
+        $alternative = $this->buildAlternative(
+            $offerVersion->id(),
+            FitLevel::HIGH,
+            '3',
+            ImpactType::NO_CLEAR_IMPACT,
+            ChangeFriction::LOW,
+            false,
+        );
+
+        $this->expectException(\InvalidArgumentException::class);
+
+        $builder->buildSwitch(
+            $alternative,
+            $offer,
+            $offerVersion,
+            'main explanation',
+            [],
+            [],
+        );
+    }
+
     public function test_mismatched_offer_version_is_rejected(): void
     {
         $builder = new SwitchRecommendationBuilder();

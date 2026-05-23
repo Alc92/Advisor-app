@@ -10,6 +10,7 @@ use App\Advisor\Domain\Enum\ChangeFriction;
 use App\Advisor\Domain\Enum\Decision;
 use App\Advisor\Domain\Enum\DecisionReasonCode;
 use App\Advisor\Domain\Enum\FitLevel;
+use App\Advisor\Domain\Enum\ImpactType;
 use App\Catalog\Domain\TelecomOffer;
 use App\Catalog\Domain\TelecomOfferVersion;
 use InvalidArgumentException;
@@ -48,6 +49,12 @@ final class SwitchRecommendationBuilder
             throw new InvalidArgumentException('No se permite SWITCH con trade-off no aceptado.');
         }
 
+        $impact = $selectedAlternative->estimatedImpact();
+
+        if ($impact->impactType() !== ImpactType::MONTHLY_SAVINGS || $impact->monthlySavingsEstimate() === null || $this->amountToCents($impact->monthlySavingsEstimate()->amount()) < 500) {
+            throw new InvalidArgumentException('No se permite SWITCH sin ahorro mensual suficiente (mínimo 5 EUR).');
+        }
+
         $commercialData = $offerVersion->commercialData();
 
         $snapshot = new RecommendedOfferSnapshot(
@@ -75,5 +82,15 @@ final class SwitchRecommendationBuilder
             recommendedReviewMoment: null,
             reviewTrigger: null,
         );
+    }
+
+    private function amountToCents(string $amount): int
+    {
+        $normalized = trim($amount);
+        $parts = explode('.', $normalized, 2);
+        $units = (int) $parts[0];
+        $decimals = isset($parts[1]) ? (int) str_pad(substr($parts[1], 0, 2), 2, '0') : 0;
+
+        return ($units * 100) + $decimals;
     }
 }
