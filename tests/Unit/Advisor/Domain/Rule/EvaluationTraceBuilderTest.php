@@ -72,8 +72,8 @@ final class EvaluationTraceBuilderTest extends TestCase
         $offerVersionId = Uuid::v4();
         $selectionResult = $this->buildSelectionResult(
             $offerVersionId,
-            FitLevel::MEDIUM,
-            ChangeFriction::HIGH,
+            FitLevel::HIGH,
+            ChangeFriction::LOW,
             [],
             [],
         );
@@ -97,6 +97,58 @@ final class EvaluationTraceBuilderTest extends TestCase
         self::assertCount(1, $trace->evaluatedOfferVersionIds());
         self::assertCount(0, $trace->hardFilteredOffers());
         self::assertCount(0, $trace->rankedOutOffers());
+    }
+
+    public function test_rejects_hard_filtered_offer_outside_evaluated_offers(): void
+    {
+        $builder = new EvaluationTraceBuilder();
+        $offerVersionId = Uuid::v4();
+        $hardFilteredId = Uuid::v4();
+
+        $hardFiltered = [new HardFilteredOfferTrace($hardFilteredId, [DiscardReasonCode::INSUFFICIENT_FIT])];
+        $selected = new AlternativeEvaluation(
+            TelecomOfferVersionId::fromUuid($offerVersionId),
+            FitLevel::HIGH,
+            new EstimatedImpact(new Money('10', 'EUR'), new Percentage('5'), ImpactType::MONTHLY_SAVINGS, 'Ahorro claro.'),
+            ChangeFriction::LOW,
+            false,
+        );
+        $selectionResult = new AlternativeSelectionResult($selected, $hardFiltered, []);
+
+        $this->expectException(InvalidArgumentException::class);
+
+        $builder->buildNormalTrace(
+            $selectionResult,
+            [$offerVersionId],
+            [RuleCode::FIT_FILTER],
+            $this->buildInputEvidence(),
+        );
+    }
+
+    public function test_rejects_selected_offer_present_in_ranked_out(): void
+    {
+        $builder = new EvaluationTraceBuilder();
+        $offerVersionId = Uuid::v4();
+        $rankedOutId = Uuid::v4();
+
+        $rankedOut = [new RankedOutOfferTrace($rankedOutId, [DiscardReasonCode::INSUFFICIENT_IMPROVEMENT])];
+        $selected = new AlternativeEvaluation(
+            TelecomOfferVersionId::fromUuid($rankedOutId),
+            FitLevel::HIGH,
+            new EstimatedImpact(new Money('10', 'EUR'), new Percentage('5'), ImpactType::MONTHLY_SAVINGS, 'Ahorro claro.'),
+            ChangeFriction::LOW,
+            false,
+        );
+        $selectionResult = new AlternativeSelectionResult($selected, [], $rankedOut);
+
+        $this->expectException(InvalidArgumentException::class);
+
+        $builder->buildNormalTrace(
+            $selectionResult,
+            [$offerVersionId, $rankedOutId],
+            [RuleCode::FIT_FILTER],
+            $this->buildInputEvidence(),
+        );
     }
 
     public function test_builds_trace_without_catalog_when_minimum_input_is_not_met(): void
