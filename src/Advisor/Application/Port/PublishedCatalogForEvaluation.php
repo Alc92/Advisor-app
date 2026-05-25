@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Advisor\Application\Port;
 
-use App\Catalog\Domain\ValueObject\CatalogPublicationId;
 use InvalidArgumentException;
 
 final readonly class PublishedCatalogForEvaluation
@@ -15,16 +14,18 @@ final readonly class PublishedCatalogForEvaluation
     private array $offerVersions;
 
     private string $publicationVersion;
+    private string $publicationId;
 
     /**
      * @param list<PublishedOfferVersionForEvaluation> $offerVersions
      */
     public function __construct(
-        private CatalogPublicationId $publicationId,
+        string $publicationId,
         string $publicationVersion,
         array $offerVersions,
     ) {
-        if (trim($this->publicationId->toString()) === '') {
+        $trimmedPublicationId = trim($publicationId);
+        if ($trimmedPublicationId === '') {
             throw new InvalidArgumentException('publicationId cannot be empty.');
         }
 
@@ -47,11 +48,12 @@ final readonly class PublishedCatalogForEvaluation
             }
         }
 
+        $this->publicationId = $trimmedPublicationId;
         $this->publicationVersion = $trimmedPublicationVersion;
         $this->offerVersions = array_values($offerVersions);
     }
 
-    public function publicationId(): CatalogPublicationId
+    public function publicationId(): string
     {
         return $this->publicationId;
     }
