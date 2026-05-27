@@ -52,46 +52,21 @@ final readonly class AssessmentResultViewModel
         ?array $recommendedReviewMoment,
         ?string $reviewTrigger,
     ) {
-        $this->assessmentId = $this->requireNonEmpty($assessmentId, 'assessmentId');
-        $this->decision = $this->requireNonEmpty($decision, 'decision');
-        $this->reasonCode = $this->requireNonEmpty($reasonCode, 'reasonCode');
-        $this->headline = $this->requireNonEmpty($headline, 'headline');
-        $this->mainExplanation = $this->requireNonEmpty($mainExplanation, 'mainExplanation');
+        $this->assessmentId = $assessmentId;
+        $this->decision = $decision;
+        $this->reasonCode = $reasonCode;
+        $this->headline = $headline;
+        $this->mainExplanation = $mainExplanation;
         $this->estimatedImpactSummary = $estimatedImpactSummary;
         $this->suggestedOffer = $this->validateSuggestedOffer($suggestedOffer);
-        $this->tradeOffs = $this->validateStringList($tradeOffs, 'tradeOffs');
-        $this->risks = $this->validateStringList($risks, 'risks');
+        $this->tradeOffs = $tradeOffs;
+        $this->risks = $risks;
         $this->uncertaintySummary = $uncertaintySummary;
-        $this->analysisLimitations = $this->validateStringList($analysisLimitations, 'analysisLimitations');
+        $this->analysisLimitations = $analysisLimitations;
         $this->waitKind = $waitKind;
         $this->recommendedReviewMoment = $this->validateRecommendedReviewMoment($recommendedReviewMoment);
         $this->reviewTrigger = $reviewTrigger;
         $this->isPersistedFunctionally = false;
-    }
-
-    private function requireNonEmpty(string $value, string $field): string
-    {
-        $trimmed = trim($value);
-        if ($trimmed === '') {
-            throw new InvalidArgumentException($field . ' cannot be empty.');
-        }
-
-        return $trimmed;
-    }
-
-    /**
-     * @param list<string> $values
-     * @return list<string>
-     */
-    private function validateStringList(array $values, string $field): array
-    {
-        foreach ($values as $value) {
-            if (!is_string($value)) {
-                throw new InvalidArgumentException($field . ' must contain only strings.');
-            }
-        }
-
-        return array_values($values);
     }
 
     /**

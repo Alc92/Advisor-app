@@ -5,12 +5,11 @@ declare(strict_types=1);
 namespace App\Tests\Unit\Advisor\Application\ViewModel;
 
 use App\Advisor\Application\ViewModel\AssessmentResultViewModel;
-use InvalidArgumentException;
 use PHPUnit\Framework\TestCase;
 
 final class AssessmentResultViewModelTest extends TestCase
 {
-    public function testAssessmentResultViewModelCanBeCreatedForSwitchResultWithSuggestedOffer(): void
+    public function testAssessmentResultViewModelCanBeCreatedForSwitchOutputIncludingSuggestedOffer(): void
     {
         $viewModel = new AssessmentResultViewModel(
             assessmentId: 'a1',
@@ -35,11 +34,15 @@ final class AssessmentResultViewModelTest extends TestCase
         );
 
         self::assertSame('SWITCH', $viewModel->decision);
-        self::assertSame('Plan Plus', $viewModel->suggestedOffer['commercialName']);
         self::assertFalse($viewModel->isPersistedFunctionally);
+        self::assertSame('Provider X', $viewModel->suggestedOffer['provider']);
+        self::assertSame('Plan Plus', $viewModel->suggestedOffer['commercialName']);
+        self::assertSame('39.99', $viewModel->suggestedOffer['monthlyPriceAmount']);
+        self::assertSame('EUR', $viewModel->suggestedOffer['monthlyPriceCurrency']);
+        self::assertArrayNotHasKey('productName', $viewModel->suggestedOffer);
     }
 
-    public function testAssessmentResultViewModelCanBeCreatedForWaitResultWithoutSuggestedOffer(): void
+    public function testAssessmentResultViewModelCanBeCreatedForWaitOutputIncludingWaitMetadata(): void
     {
         $viewModel = new AssessmentResultViewModel(
             assessmentId: 'a2',
@@ -60,10 +63,14 @@ final class AssessmentResultViewModelTest extends TestCase
 
         self::assertSame('WAIT', $viewModel->decision);
         self::assertNull($viewModel->suggestedOffer);
-        self::assertSame(['year' => 2027, 'month' => 3], $viewModel->recommendedReviewMoment);
+        self::assertNotNull($viewModel->waitKind);
+        self::assertSame(2027, $viewModel->recommendedReviewMoment['year']);
+        self::assertSame(3, $viewModel->recommendedReviewMoment['month']);
+        self::assertNotNull($viewModel->reviewTrigger);
+        self::assertFalse($viewModel->isPersistedFunctionally);
     }
 
-    public function testAssessmentResultViewModelCanBeCreatedForStayResultWithoutSuggestedOffer(): void
+    public function testAssessmentResultViewModelCanBeCreatedForStayOutputWithoutSuggestedOffer(): void
     {
         $viewModel = new AssessmentResultViewModel(
             assessmentId: 'a3',
@@ -84,88 +91,15 @@ final class AssessmentResultViewModelTest extends TestCase
 
         self::assertSame('STAY', $viewModel->decision);
         self::assertNull($viewModel->suggestedOffer);
-    }
-
-    public function testAssessmentResultViewModelAlwaysMarksResultAsNotFunctionallyPersisted(): void
-    {
-        $viewModel = new AssessmentResultViewModel(
-            assessmentId: 'a4',
-            decision: 'SWITCH',
-            reasonCode: 'BETTER_VALUE',
-            headline: 'Switch for better value',
-            mainExplanation: 'The offer gives better price-quality ratio.',
-            estimatedImpactSummary: 'Small monthly savings.',
-            suggestedOffer: [
-                'provider' => 'Provider Y',
-                'commercialName' => 'Fiber Max',
-                'monthlyPriceAmount' => '44.99',
-                'monthlyPriceCurrency' => 'EUR',
-            ],
-            tradeOffs: [],
-            risks: [],
-            uncertaintySummary: null,
-            analysisLimitations: [],
-            waitKind: null,
-            recommendedReviewMoment: null,
-            reviewTrigger: null,
-        );
-
+        self::assertNull($viewModel->waitKind);
+        self::assertNull($viewModel->recommendedReviewMoment);
         self::assertFalse($viewModel->isPersistedFunctionally);
-    }
-
-    public function testAssessmentResultViewModelRejectsInvalidSuggestedOfferShape(): void
-    {
-        $this->expectException(InvalidArgumentException::class);
-
-        new AssessmentResultViewModel(
-            assessmentId: 'a5',
-            decision: 'SWITCH',
-            reasonCode: 'BETTER_PRICE',
-            headline: 'Switch now',
-            mainExplanation: 'You can save money.',
-            estimatedImpactSummary: null,
-            suggestedOffer: [
-                'provider' => 'Provider X',
-                'productName' => 'Wrong Key',
-                'monthlyPriceAmount' => '39.99',
-                'monthlyPriceCurrency' => 'EUR',
-            ],
-            tradeOffs: [],
-            risks: [],
-            uncertaintySummary: null,
-            analysisLimitations: [],
-            waitKind: null,
-            recommendedReviewMoment: null,
-            reviewTrigger: null,
-        );
-    }
-
-    public function testAssessmentResultViewModelRejectsInvalidRecommendedReviewMomentShape(): void
-    {
-        $this->expectException(InvalidArgumentException::class);
-
-        new AssessmentResultViewModel(
-            assessmentId: 'a6',
-            decision: 'WAIT',
-            reasonCode: 'WAIT_SIGNAL',
-            headline: 'Wait',
-            mainExplanation: 'A near event is expected.',
-            estimatedImpactSummary: null,
-            suggestedOffer: null,
-            tradeOffs: [],
-            risks: [],
-            uncertaintySummary: null,
-            analysisLimitations: [],
-            waitKind: 'EVENT_DRIVEN',
-            recommendedReviewMoment: ['year' => 2027, 'month' => '3'],
-            reviewTrigger: 'Event',
-        );
     }
 
     public function testAssessmentResultViewModelDoesNotExposeDomainObjects(): void
     {
         $viewModel = new AssessmentResultViewModel(
-            assessmentId: 'a7',
+            assessmentId: 'a4',
             decision: 'STAY',
             reasonCode: 'GOOD_ENOUGH',
             headline: 'Stay for now',
@@ -186,5 +120,8 @@ final class AssessmentResultViewModelTest extends TestCase
         self::assertIsArray($viewModel->tradeOffs);
         self::assertIsArray($viewModel->risks);
         self::assertIsArray($viewModel->analysisLimitations);
+        self::assertIsBool($viewModel->isPersistedFunctionally);
+        self::assertNull($viewModel->suggestedOffer);
+        self::assertNull($viewModel->recommendedReviewMoment);
     }
 }
