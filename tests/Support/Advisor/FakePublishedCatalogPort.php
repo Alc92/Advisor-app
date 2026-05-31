@@ -6,12 +6,13 @@ namespace App\Tests\Support\Advisor;
 
 use App\Advisor\Application\Port\PublishedCatalogForEvaluation;
 use App\Advisor\Application\Port\PublishedCatalogPort;
+use App\Tests\Support\Catalog\Gate1PublishedCatalogFixture;
 
 final class FakePublishedCatalogPort implements PublishedCatalogPort
 {
     private int $calls = 0;
 
-    public function __construct(private readonly PublishedCatalogForEvaluation $catalog)
+    public function __construct(private readonly ?PublishedCatalogForEvaluation $catalog = null)
     {
     }
 
@@ -19,7 +20,7 @@ final class FakePublishedCatalogPort implements PublishedCatalogPort
     {
         $this->calls++;
 
-        return $this->catalog;
+        return $this->catalog ?? Gate1PublishedCatalogFixture::publishedCatalog();
     }
 
     public function calls(): int
