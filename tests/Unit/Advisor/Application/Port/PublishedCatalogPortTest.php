@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Unit\Advisor\Application\Port;
 
 use App\Advisor\Application\Port\PublishedCatalogForEvaluation;
+use App\Advisor\Application\Port\PublishedCatalogPort;
 use App\Advisor\Application\Port\PublishedOfferVersionForEvaluation;
 use App\Advisor\Domain\Enum\ProductType;
 use App\Advisor\Domain\ValueObject\Money;
@@ -127,20 +128,17 @@ final class PublishedCatalogPortTest extends TestCase
 
     public function test_fake_published_catalog_port_returns_catalog_and_counts_calls(): void
     {
-        $catalog = new PublishedCatalogForEvaluation(
-            'a1e2c3d4-1111-2222-3333-444455556666',
-            'v1',
-            [$this->buildValidOfferVersion()],
-        );
+        $fake = new FakePublishedCatalogPort();
 
-        $fake = new FakePublishedCatalogPort($catalog);
-
+        self::assertInstanceOf(PublishedCatalogPort::class, $fake);
         self::assertSame(0, $fake->calls());
         self::assertFalse($fake->wasCalled());
 
         $returned = $fake->getCurrentPublishedCatalog();
 
-        self::assertSame($catalog, $returned);
+        self::assertInstanceOf(PublishedCatalogForEvaluation::class, $returned);
+        self::assertSame('catpub_gate1_001', $returned->publicationId());
+        self::assertSame('gate1-fixture-2026-05-31', $returned->publicationVersion());
         self::assertSame(1, $fake->calls());
         self::assertTrue($fake->wasCalled());
     }
