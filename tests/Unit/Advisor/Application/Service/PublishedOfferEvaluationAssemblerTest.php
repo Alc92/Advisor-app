@@ -118,9 +118,27 @@ final class PublishedOfferEvaluationAssemblerTest extends TestCase
     {
         $assembler = new PublishedOfferEvaluationAssembler();
 
-        $result = $assembler->assemble($this->mobileOffer('ofv_gate1_mobile_basic_v1'));
+        $offer = new PublishedOfferVersionForEvaluation(
+            offerVersionId: '  ofv_gate1_mobile_basic_v1  ',
+            provider: '  Provider Mobile  ',
+            commercialName: '  Plan Mobile 50GB  ',
+            monthlyPrice: new Money('19.90', 'EUR'),
+            mobileLinesIncluded: 1,
+            tvIncluded: false,
+            fiberSpeedMbps: null,
+            mobileDataDisplay: '50 GB',
+            productType: ProductType::MOBILE,
+            fiberCapacityBand: null,
+            mobileUsageBandSupported: MobileUsageBand::MEDIUM,
+            fiberIncluded: false,
+            asymmetricLines: false,
+        );
 
-        self::assertSame('ofv_gate1_mobile_basic_v1', $result->sourceOfferVersionId());
+        $result = $assembler->assemble($offer);
+
+        self::assertSame($offer->offerVersionId(), $result->sourceOfferVersionId());
+        self::assertSame($offer->provider(), $result->provider());
+        self::assertSame($offer->commercialName(), $result->commercialName());
     }
 
     private function mobileOffer(string $sourceOfferVersionId): PublishedOfferVersionForEvaluation

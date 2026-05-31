@@ -33,18 +33,15 @@ final readonly class EvaluablePublishedOffer
         private bool $fiberIncluded,
         private bool $asymmetricLines,
     ) {
-        $trimmedSourceId = trim($sourceOfferVersionId);
-        if ($trimmedSourceId === '') {
+        if (trim($sourceOfferVersionId) === '') {
             throw new InvalidArgumentException('sourceOfferVersionId cannot be empty.');
         }
 
-        $trimmedProvider = trim($provider);
-        if ($trimmedProvider === '') {
+        if (trim($provider) === '') {
             throw new InvalidArgumentException('provider cannot be empty.');
         }
 
-        $trimmedCommercialName = trim($commercialName);
-        if ($trimmedCommercialName === '') {
+        if (trim($commercialName) === '') {
             throw new InvalidArgumentException('commercialName cannot be empty.');
         }
 
@@ -52,9 +49,9 @@ final readonly class EvaluablePublishedOffer
             throw new InvalidArgumentException('mobileLinesIncluded must be greater than or equal to 0.');
         }
 
-        $this->sourceOfferVersionId = $trimmedSourceId;
-        $this->provider = $trimmedProvider;
-        $this->commercialName = $trimmedCommercialName;
+        $this->sourceOfferVersionId = $sourceOfferVersionId;
+        $this->provider = $provider;
+        $this->commercialName = $commercialName;
     }
 
     public function sourceOfferVersionId(): string
