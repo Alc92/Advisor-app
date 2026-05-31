@@ -47,7 +47,7 @@ final readonly class EvaluateAssessment
         $assessment->markAsEvaluated(
             $result,
             EvaluationMode::EVALUATED_NORMAL,
-            'MVP5.1_SKELETON',
+            'evaluate_assessment_skeleton',
             null,
             $this->clock->now(),
         );
@@ -59,7 +59,7 @@ final readonly class EvaluateAssessment
             'SWITCH' => 'Te conviene cambiar',
             'WAIT' => 'Ahora mismo te conviene esperar',
             'STAY' => 'Te conviene mantener tu tarifa actual',
-            default => 'Resultado de evaluacion',
+            default => 'Resultado de evaluación',
         };
 
         return new AssessmentResultViewModel(
