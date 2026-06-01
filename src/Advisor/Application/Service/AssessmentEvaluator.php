@@ -16,7 +16,9 @@ use App\Advisor\Domain\Enum\CommitmentStatus;
 use App\Advisor\Domain\Enum\DecisionDegradationCode;
 use App\Advisor\Domain\Enum\FitLevel;
 use App\Advisor\Domain\Enum\ImpactType;
+use App\Advisor\Domain\Enum\PromotionStatus;
 use App\Advisor\Domain\Enum\RuleCode;
+use App\Advisor\Domain\Enum\UncertaintyFlag;
 use App\Advisor\Domain\Rule\AlternativeEvaluation;
 use App\Advisor\Domain\Rule\AlternativeSelectionResult;
 use App\Advisor\Domain\Rule\AlternativeSelector;
@@ -150,6 +152,25 @@ final readonly class AssessmentEvaluator implements AssessmentEvaluationPort
 
         $selectedAlternative = $selectionResult->selectedAlternative();
 
+        if ($selectedAlternative !== null && $this->hasRelevantUncertainty($snapshot)) {
+            $analysisLimitations = $this->ensureMissingCriticalDataLimitation($analysisLimitations);
+            $recommendation = $this->waitRecommendationBuilder->buildForRelevantUncertainty(
+                'Falta confirmar si tienes permanencia o una promocion activa.',
+                'Antes de recomendar un cambio conviene confirmar si tienes permanencia o una promocion activa, porque podria afectar a la decision.',
+                $analysisLimitations,
+            );
+            $trace = $this->evaluationTraceBuilder->buildDegradedTrace(
+                $selectionResult,
+                $evaluatedOfferVersionIds,
+                $appliedRules,
+                [DecisionDegradationCode::RELEVANT_UNCERTAINTY],
+                $analysisLimitations,
+                $inputEvidence,
+            );
+
+            return new AssessmentResult($recommendation, $trace, $generatedAt);
+        }
+
         if ($selectedAlternative !== null) {
             $selectedOffer = $offersByInternalId[$selectedAlternative->offerVersionId()->toString()]
                 ?? throw new LogicException('Selected offer was not found in evaluated offers.');
@@ -207,6 +228,37 @@ final readonly class AssessmentEvaluator implements AssessmentEvaluationPort
         }
 
         return [];
+    }
+
+    private function hasRelevantUncertainty(AssessmentInputSnapshot $snapshot): bool
+    {
+        if ($snapshot->inputQuality()->hasUncertainty(UncertaintyFlag::UNKNOWN_COMMITMENT)
+            || $snapshot->inputQuality()->hasUncertainty(UncertaintyFlag::UNKNOWN_PROMOTION)
+        ) {
+            return true;
+        }
+
+        $currentSituation = $snapshot->currentSituation();
+
+        return $currentSituation->commitmentStatus() === CommitmentStatus::UNKNOWN
+            || $currentSituation->promotionStatus() === PromotionStatus::UNKNOWN;
+    }
+
+    /**
+     * @param list<AnalysisLimitationCode> $analysisLimitations
+     * @return list<AnalysisLimitationCode>
+     */
+    private function ensureMissingCriticalDataLimitation(array $analysisLimitations): array
+    {
+        foreach ($analysisLimitations as $limitation) {
+            if ($limitation === AnalysisLimitationCode::MISSING_CRITICAL_DATA) {
+                return $analysisLimitations;
+            }
+        }
+
+        $analysisLimitations[] = AnalysisLimitationCode::MISSING_CRITICAL_DATA;
+
+        return $analysisLimitations;
     }
 
     private function commitmentEndDateOr(AssessmentInputSnapshot $snapshot, DateTimeImmutable $fallback): DateTimeImmutable

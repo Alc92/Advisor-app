@@ -14,6 +14,7 @@ use App\Advisor\Domain\Enum\Decision;
 use App\Advisor\Domain\Enum\FiberNeedBand;
 use App\Advisor\Domain\Enum\MobileUsageBand;
 use App\Advisor\Domain\Enum\ProductType;
+use App\Advisor\Domain\Enum\PromotionStatus;
 use App\Advisor\Domain\Rule\AlternativeSelector;
 use App\Advisor\Domain\Rule\ChangeFrictionCalculator;
 use App\Advisor\Domain\Rule\EstimatedImpactCalculator;
@@ -77,6 +78,44 @@ final class EvaluateAssessmentTest extends TestCase
         self::assertSame('WAIT_DUE_TO_UNCERTAINTY', $result->reasonCode);
         self::assertSame('UNCERTAINTY_OR_MISSING_INFO', $result->waitKind);
         self::assertSame('CHECK_MISSING_INFORMATION', $result->reviewTrigger);
+    }
+
+    public function test_it_returns_wait_for_unknown_commitment_using_real_evaluator(): void
+    {
+        $useCase = $this->useCaseWithRealEvaluator(new FakePublishedCatalogPort(Gate1PublishedCatalogFixture::clearSavingsCatalog()));
+
+        $result = $useCase(
+            $this->commandForMobile(
+                '50.00',
+                MobileUsageBand::HIGH,
+                commitmentStatus: CommitmentStatus::UNKNOWN,
+            ),
+        );
+
+        self::assertSame(Decision::WAIT->value, $result->decision);
+        self::assertSame('WAIT_DUE_TO_UNCERTAINTY', $result->reasonCode);
+        self::assertSame('UNCERTAINTY_OR_MISSING_INFO', $result->waitKind);
+        self::assertSame('CHECK_MISSING_INFORMATION', $result->reviewTrigger);
+        self::assertNull($result->suggestedOffer);
+    }
+
+    public function test_it_returns_wait_for_unknown_promotion_using_real_evaluator(): void
+    {
+        $useCase = $this->useCaseWithRealEvaluator(new FakePublishedCatalogPort(Gate1PublishedCatalogFixture::clearSavingsCatalog()));
+
+        $result = $useCase(
+            $this->commandForMobile(
+                '50.00',
+                MobileUsageBand::HIGH,
+                promotionStatus: PromotionStatus::UNKNOWN,
+            ),
+        );
+
+        self::assertSame(Decision::WAIT->value, $result->decision);
+        self::assertSame('WAIT_DUE_TO_UNCERTAINTY', $result->reasonCode);
+        self::assertSame('UNCERTAINTY_OR_MISSING_INFO', $result->waitKind);
+        self::assertSame('CHECK_MISSING_INFORMATION', $result->reviewTrigger);
+        self::assertNull($result->suggestedOffer);
     }
 
     public function test_it_does_not_query_catalog_when_minimum_input_is_not_met(): void
@@ -180,6 +219,7 @@ final class EvaluateAssessmentTest extends TestCase
         CommitmentStatus $commitmentStatus = CommitmentStatus::NO,
         ?ApproximateDate $commitmentEnd = null,
         bool $multipleResidencesDetected = false,
+        PromotionStatus $promotionStatus = PromotionStatus::NOT_ACTIVE,
     ): EvaluateAssessmentCommand {
         return new EvaluateAssessmentCommand(
             currentProvider: 'Provider A',
@@ -192,7 +232,7 @@ final class EvaluateAssessmentTest extends TestCase
             commitmentStatus: $commitmentStatus->value,
             commitmentEndYear: $commitmentEnd?->year(),
             commitmentEndMonth: $commitmentEnd?->month(),
-            promotionStatus: 'NOT_ACTIVE',
+            promotionStatus: $promotionStatus->value,
             promotionEndYear: null,
             promotionEndMonth: null,
             tvIncluded: false,
