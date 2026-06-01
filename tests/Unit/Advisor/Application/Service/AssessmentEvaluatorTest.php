@@ -129,6 +129,24 @@ final class AssessmentEvaluatorTest extends TestCase
         self::assertSame(EvaluationMode::EVALUATED_DEGRADED, $result->evaluationTrace()?->evaluationMode());
     }
 
+    public function test_it_returns_stay_for_active_commitment_when_no_offer_has_sufficient_improvement(): void
+    {
+        $result = $this->evaluator()->evaluate(
+            $this->snapshotForMobile(MobileUsageBand::HIGH, '50.00', CommitmentStatus::YES, new ApproximateDate(2026, 6)),
+            $this->catalogWith($this->mobileOffer('offer-stay-commitment', 'Provider Stay Commitment', 'Mobile Stay Commitment', '48.00', MobileUsageBand::HIGH)),
+        );
+
+        $recommendation = $result->recommendation();
+
+        self::assertSame(Decision::STAY, $recommendation->decision());
+        self::assertSame(DecisionReasonCode::NO_CLEAR_IMPROVEMENT, $recommendation->reasonCode());
+        self::assertNull($recommendation->waitKind());
+        self::assertNull($recommendation->reviewTrigger());
+        self::assertNull($recommendation->suggestedOfferVersionId());
+        self::assertNull($recommendation->suggestedOfferSnapshot());
+        self::assertSame(EvaluationMode::EVALUATED_NORMAL, $result->evaluationTrace()?->evaluationMode());
+    }
+
     public function test_it_returns_stay_when_no_offer_has_sufficient_improvement(): void
     {
         $result = $this->evaluator()->evaluate(

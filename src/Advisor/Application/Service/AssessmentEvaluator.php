@@ -14,6 +14,7 @@ use App\Advisor\Domain\Assessment\Recommendation;
 use App\Advisor\Domain\Enum\AnalysisLimitationCode;
 use App\Advisor\Domain\Enum\CommitmentStatus;
 use App\Advisor\Domain\Enum\DecisionDegradationCode;
+use App\Advisor\Domain\Enum\FitLevel;
 use App\Advisor\Domain\Enum\ImpactType;
 use App\Advisor\Domain\Enum\RuleCode;
 use App\Advisor\Domain\Rule\AlternativeEvaluation;
@@ -129,7 +130,7 @@ final readonly class AssessmentEvaluator implements AssessmentEvaluationPort
             RuleCode::FINAL_SELECTION,
         ];
 
-        if ($currentSituation->commitmentStatus() === CommitmentStatus::YES) {
+        if ($currentSituation->commitmentStatus() === CommitmentStatus::YES && $this->hasBlockedImprovementCandidate($alternatives)) {
             $recommendation = $this->waitRecommendationBuilder->buildForActiveCommitment(
                 $this->commitmentEndDateOr($snapshot, $generatedAt),
                 'Conviene esperar al fin de la permanencia antes de cambiar.',
@@ -233,6 +234,43 @@ final readonly class AssessmentEvaluator implements AssessmentEvaluationPort
         return $this->stayRecommendationBuilder->buildForAlreadyOptimized(
             'No hay una mejora suficiente para recomendar un cambio ahora.',
         )->estimatedImpact();
+    }
+
+    /**
+     * @param list<AlternativeEvaluation> $alternatives
+     */
+    private function hasBlockedImprovementCandidate(array $alternatives): bool
+    {
+        foreach ($alternatives as $alternative) {
+            if ($alternative->fitLevel() === FitLevel::LOW) {
+                continue;
+            }
+
+            $impact = $alternative->estimatedImpact();
+            $savings = $impact->monthlySavingsEstimate();
+
+            if ($impact->impactType() === ImpactType::MONTHLY_SAVINGS && $savings !== null && $this->amountToCents($savings->amount()) >= 500) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function amountToCents(string $amount): int
+    {
+        $normalized = trim($amount);
+
+        if (str_contains($normalized, '.')) {
+            [$units, $decimals] = explode('.', $normalized, 2);
+        } else {
+            $units = $normalized;
+            $decimals = '0';
+        }
+
+        $decimals = str_pad(substr($decimals, 0, 2), 2, '0');
+
+        return ((int) $units * 100) + (int) $decimals;
     }
 
     /**
