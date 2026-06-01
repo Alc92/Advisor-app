@@ -4,7 +4,10 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Advisor\Application\Service;
 
+use App\Advisor\Application\Port\PublishedCatalogForEvaluation;
+use App\Advisor\Application\Port\PublishedOfferVersionForEvaluation;
 use App\Advisor\Application\Service\AssessmentEvaluator;
+use App\Advisor\Application\Service\PublishedOfferEvaluationAssembler;
 use App\Advisor\Domain\Assessment\AssessmentInputSnapshot;
 use App\Advisor\Domain\Assessment\CurrentSituation;
 use App\Advisor\Domain\Assessment\InputQuality;
@@ -14,15 +17,26 @@ use App\Advisor\Domain\Enum\DataProvenance;
 use App\Advisor\Domain\Enum\Decision;
 use App\Advisor\Domain\Enum\DecisionReasonCode;
 use App\Advisor\Domain\Enum\EvaluationMode;
+use App\Advisor\Domain\Enum\FiberNeedBand;
+use App\Advisor\Domain\Enum\FitLevel;
+use App\Advisor\Domain\Enum\MobileUsageBand;
 use App\Advisor\Domain\Enum\ProductType;
 use App\Advisor\Domain\Enum\PromotionStatus;
 use App\Advisor\Domain\Enum\ReviewTrigger;
 use App\Advisor\Domain\Enum\UserPreference;
 use App\Advisor\Domain\Enum\WaitKind;
+use App\Advisor\Domain\Rule\AlternativeSelector;
+use App\Advisor\Domain\Rule\ChangeFrictionCalculator;
+use App\Advisor\Domain\Rule\EstimatedImpactCalculator;
 use App\Advisor\Domain\Rule\EvaluationTraceBuilder;
+use App\Advisor\Domain\Rule\FitCalculator;
 use App\Advisor\Domain\Rule\MinimumEvaluableInputRule;
+use App\Advisor\Domain\Rule\StayRecommendationBuilder;
+use App\Advisor\Domain\Rule\SwitchRecommendationBuilder;
 use App\Advisor\Domain\Rule\WaitRecommendationBuilder;
+use App\Advisor\Domain\ValueObject\ApproximateDate;
 use App\Advisor\Domain\ValueObject\Money;
+use App\Catalog\Domain\Enum\FiberCapacityBand;
 use PHPUnit\Framework\TestCase;
 
 final class AssessmentEvaluatorTest extends TestCase
@@ -80,11 +94,131 @@ final class AssessmentEvaluatorTest extends TestCase
         self::assertContains(AnalysisLimitationCode::MISSING_CRITICAL_DATA, $trace->analysisLimitations());
     }
 
+    public function test_it_returns_switch_for_clear_savings_with_valid_catalog(): void
+    {
+        $result = $this->evaluator()->evaluate(
+            $this->snapshotForMobile(MobileUsageBand::HIGH, '50.00'),
+            $this->catalogWith($this->mobileOffer('offer-switch', 'Provider Switch', 'Mobile Switch', '30.00', MobileUsageBand::HIGH)),
+        );
+
+        $recommendation = $result->recommendation();
+
+        self::assertSame(Decision::SWITCH, $recommendation->decision());
+        self::assertSame(DecisionReasonCode::CLEAR_SAVINGS, $recommendation->reasonCode());
+        self::assertNotNull($recommendation->suggestedOfferVersionId());
+        self::assertNotNull($recommendation->suggestedOfferSnapshot());
+        self::assertSame(EvaluationMode::EVALUATED_NORMAL, $result->evaluationTrace()?->evaluationMode());
+        self::assertNotNull($result->evaluationTrace()?->selectedOfferVersionId());
+    }
+
+    public function test_it_returns_wait_for_active_commitment_with_catalog_evaluated(): void
+    {
+        $result = $this->evaluator()->evaluate(
+            $this->snapshotForMobile(MobileUsageBand::HIGH, '50.00', CommitmentStatus::YES, new ApproximateDate(2026, 6)),
+            $this->catalogWith($this->mobileOffer('offer-wait', 'Provider Wait', 'Mobile Wait', '30.00', MobileUsageBand::HIGH)),
+        );
+
+        $recommendation = $result->recommendation();
+
+        self::assertSame(Decision::WAIT, $recommendation->decision());
+        self::assertSame(DecisionReasonCode::WAIT_FOR_COMMITMENT_END, $recommendation->reasonCode());
+        self::assertSame(WaitKind::TIMING, $recommendation->waitKind());
+        self::assertSame(ReviewTrigger::COMMITMENT_END, $recommendation->reviewTrigger());
+        self::assertNull($recommendation->suggestedOfferVersionId());
+        self::assertNull($recommendation->suggestedOfferSnapshot());
+        self::assertSame(EvaluationMode::EVALUATED_DEGRADED, $result->evaluationTrace()?->evaluationMode());
+    }
+
+    public function test_it_returns_stay_for_active_commitment_when_no_offer_has_sufficient_improvement(): void
+    {
+        $result = $this->evaluator()->evaluate(
+            $this->snapshotForMobile(MobileUsageBand::HIGH, '50.00', CommitmentStatus::YES, new ApproximateDate(2026, 6)),
+            $this->catalogWith($this->mobileOffer('offer-stay-commitment', 'Provider Stay Commitment', 'Mobile Stay Commitment', '48.00', MobileUsageBand::HIGH)),
+        );
+
+        $recommendation = $result->recommendation();
+
+        self::assertSame(Decision::STAY, $recommendation->decision());
+        self::assertSame(DecisionReasonCode::NO_CLEAR_IMPROVEMENT, $recommendation->reasonCode());
+        self::assertNull($recommendation->waitKind());
+        self::assertNull($recommendation->reviewTrigger());
+        self::assertNull($recommendation->suggestedOfferVersionId());
+        self::assertNull($recommendation->suggestedOfferSnapshot());
+        self::assertSame(EvaluationMode::EVALUATED_NORMAL, $result->evaluationTrace()?->evaluationMode());
+    }
+
+    public function test_it_returns_stay_when_no_offer_has_sufficient_improvement(): void
+    {
+        $result = $this->evaluator()->evaluate(
+            $this->snapshotForMobile(MobileUsageBand::HIGH, '50.00'),
+            $this->catalogWith($this->mobileOffer('offer-stay', 'Provider Stay', 'Mobile Stay', '48.00', MobileUsageBand::HIGH)),
+        );
+
+        $recommendation = $result->recommendation();
+
+        self::assertSame(Decision::STAY, $recommendation->decision());
+        self::assertSame(DecisionReasonCode::NO_CLEAR_IMPROVEMENT, $recommendation->reasonCode());
+        self::assertNull($recommendation->suggestedOfferVersionId());
+        self::assertNull($recommendation->suggestedOfferSnapshot());
+        self::assertSame(EvaluationMode::EVALUATED_NORMAL, $result->evaluationTrace()?->evaluationMode());
+    }
+
+    public function test_it_does_not_assign_high_fit_to_asymmetric_offer_for_aggregated_usage(): void
+    {
+        $result = $this->evaluator()->evaluate(
+            $this->snapshotForFiberMobile(MobileUsageBand::MEDIUM, FiberNeedBand::STANDARD, '70.00'),
+            $this->catalogWith($this->fiberMobileOffer('offer-asymmetric', 'Provider Asym', 'Bundle Asym', '45.00', true)),
+        );
+
+        self::assertSame(Decision::SWITCH, $result->recommendation()->decision());
+        self::assertSame(FitLevel::MEDIUM, $result->evaluationTrace()?->selectedFitLevel());
+    }
+
+    public function test_it_adds_multi_residence_limitation_when_supported(): void
+    {
+        $result = $this->evaluator()->evaluate(
+            $this->snapshotForMobile(MobileUsageBand::HIGH, '50.00', multipleResidencesDetected: true),
+            $this->catalogWith($this->mobileOffer('offer-multi', 'Provider Multi', 'Mobile Multi', '30.00', MobileUsageBand::HIGH)),
+        );
+
+        self::assertContains(AnalysisLimitationCode::MULTI_RESIDENCE_NOT_SUPPORTED, $result->recommendation()->analysisLimitations());
+        self::assertContains(AnalysisLimitationCode::MULTI_RESIDENCE_NOT_SUPPORTED, $result->evaluationTrace()?->analysisLimitations());
+    }
+
+    public function test_it_builds_trace_with_evaluated_ranked_out_and_selected_offers(): void
+    {
+        $result = $this->evaluator()->evaluate(
+            $this->snapshotForMobile(MobileUsageBand::HIGH, '50.00'),
+            $this->catalogWith(
+                $this->mobileOffer('offer-selected', 'Provider Selected', 'Mobile Selected', '30.00', MobileUsageBand::HIGH),
+                $this->mobileOffer('offer-ranked-out', 'Provider Ranked', 'Mobile Ranked', '48.00', MobileUsageBand::HIGH),
+                $this->mobileOffer('offer-hard-filtered', 'Provider Filtered', 'Mobile Filtered', '20.00', MobileUsageBand::MEDIUM),
+            ),
+        );
+
+        $trace = $result->evaluationTrace();
+
+        self::assertNotNull($trace);
+        self::assertSame(EvaluationMode::EVALUATED_NORMAL, $trace->evaluationMode());
+        self::assertCount(3, $trace->evaluatedOfferVersionIds());
+        self::assertCount(1, $trace->hardFilteredOffers());
+        self::assertCount(1, $trace->rankedOutOffers());
+        self::assertNotNull($trace->selectedOfferVersionId());
+        self::assertSame(FitLevel::HIGH, $trace->selectedFitLevel());
+    }
+
     private function evaluator(): AssessmentEvaluator
     {
         return new AssessmentEvaluator(
             new MinimumEvaluableInputRule(),
+            new PublishedOfferEvaluationAssembler(),
+            new FitCalculator(),
+            new EstimatedImpactCalculator(),
+            new ChangeFrictionCalculator(),
+            new AlternativeSelector(),
+            new SwitchRecommendationBuilder(),
             new WaitRecommendationBuilder(),
+            new StayRecommendationBuilder(),
             new EvaluationTraceBuilder(),
         );
     }
@@ -112,6 +246,123 @@ final class AssessmentEvaluatorTest extends TestCase
             UserPreference::BALANCE,
             null,
             InputQuality::fromCurrentSituation($currentSituation),
+        );
+    }
+
+    private function snapshotForMobile(
+        MobileUsageBand $mobileUsageBand,
+        string $monthlyPrice,
+        CommitmentStatus $commitmentStatus = CommitmentStatus::NO,
+        ?ApproximateDate $commitmentEndApprox = null,
+        bool $multipleResidencesDetected = false,
+    ): AssessmentInputSnapshot {
+        $currentSituation = new CurrentSituation(
+            'Provider A',
+            ProductType::MOBILE,
+            new Money($monthlyPrice, 'EUR'),
+            1,
+            $mobileUsageBand,
+            null,
+            $commitmentStatus,
+            $commitmentEndApprox,
+            PromotionStatus::NOT_ACTIVE,
+            null,
+            false,
+            $multipleResidencesDetected,
+            DataProvenance::DECLARED_BY_USER,
+        );
+
+        return new AssessmentInputSnapshot(
+            $currentSituation,
+            UserPreference::BALANCE,
+            null,
+            InputQuality::fromCurrentSituation($currentSituation),
+        );
+    }
+
+    private function snapshotForFiberMobile(
+        MobileUsageBand $mobileUsageBand,
+        FiberNeedBand $fiberNeedBand,
+        string $monthlyPrice,
+    ): AssessmentInputSnapshot {
+        $currentSituation = new CurrentSituation(
+            'Provider A',
+            ProductType::FIBER_MOBILE,
+            new Money($monthlyPrice, 'EUR'),
+            2,
+            $mobileUsageBand,
+            $fiberNeedBand,
+            CommitmentStatus::NO,
+            null,
+            PromotionStatus::NOT_ACTIVE,
+            null,
+            false,
+            false,
+            DataProvenance::DECLARED_BY_USER,
+        );
+
+        return new AssessmentInputSnapshot(
+            $currentSituation,
+            UserPreference::BALANCE,
+            null,
+            InputQuality::fromCurrentSituation($currentSituation),
+        );
+    }
+
+    private function catalogWith(PublishedOfferVersionForEvaluation ...$offers): PublishedCatalogForEvaluation
+    {
+        return new PublishedCatalogForEvaluation(
+            'catalog-test',
+            'catalog-test-v1',
+            $offers,
+        );
+    }
+
+    private function mobileOffer(
+        string $offerVersionId,
+        string $provider,
+        string $commercialName,
+        string $monthlyPrice,
+        MobileUsageBand $mobileUsageBandSupported,
+    ): PublishedOfferVersionForEvaluation {
+        return new PublishedOfferVersionForEvaluation(
+            $offerVersionId,
+            $provider,
+            $commercialName,
+            new Money($monthlyPrice, 'EUR'),
+            1,
+            false,
+            null,
+            '50 GB',
+            ProductType::MOBILE,
+            null,
+            $mobileUsageBandSupported,
+            false,
+            false,
+        );
+    }
+
+    private function fiberMobileOffer(
+        string $offerVersionId,
+        string $provider,
+        string $commercialName,
+        string $monthlyPrice,
+        bool $asymmetricLines,
+    ): PublishedOfferVersionForEvaluation {
+        return new PublishedOfferVersionForEvaluation(
+            $offerVersionId,
+            $provider,
+            $commercialName,
+            new Money($monthlyPrice, 'EUR'),
+            3,
+            false,
+            600,
+            '50GB + 10GB + 10GB',
+            ProductType::FIBER_MOBILE,
+            FiberCapacityBand::HIGH,
+            MobileUsageBand::HIGH,
+            true,
+            $asymmetricLines,
         );
     }
 }

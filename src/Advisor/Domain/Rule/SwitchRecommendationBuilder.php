@@ -6,6 +6,7 @@ namespace App\Advisor\Domain\Rule;
 
 use App\Advisor\Domain\Assessment\Recommendation;
 use App\Advisor\Domain\Assessment\RecommendedOfferSnapshot;
+use App\Advisor\Domain\Enum\AnalysisLimitationCode;
 use App\Advisor\Domain\Enum\ChangeFriction;
 use App\Advisor\Domain\Enum\Decision;
 use App\Advisor\Domain\Enum\DecisionReasonCode;
@@ -79,6 +80,49 @@ final class SwitchRecommendationBuilder
             risks: $risks,
             uncertaintySummary: null,
             analysisLimitations: [],
+            recommendedReviewMoment: null,
+            reviewTrigger: null,
+        );
+    }
+
+    /**
+     * @param list<AnalysisLimitationCode> $analysisLimitations
+     */
+    public function buildSwitchFromSnapshot(
+        AlternativeEvaluation $selectedAlternative,
+        RecommendedOfferSnapshot $suggestedOfferSnapshot,
+        array $analysisLimitations = [],
+    ): Recommendation {
+        if ($selectedAlternative->fitLevel() === FitLevel::LOW) {
+            throw new InvalidArgumentException('No se permite SWITCH con fit LOW.');
+        }
+
+        if ($selectedAlternative->changeFriction() === ChangeFriction::HIGH) {
+            throw new InvalidArgumentException('No se permite SWITCH con fricción HIGH.');
+        }
+
+        if ($selectedAlternative->hasUnacceptableTradeOff() === true) {
+            throw new InvalidArgumentException('No se permite SWITCH con trade-off no aceptado.');
+        }
+
+        $impact = $selectedAlternative->estimatedImpact();
+
+        if ($impact->impactType() !== ImpactType::MONTHLY_SAVINGS || $impact->monthlySavingsEstimate() === null || $this->amountToCents($impact->monthlySavingsEstimate()->amount()) < 500) {
+            throw new InvalidArgumentException('No se permite SWITCH sin ahorro mensual suficiente (mínimo 5 EUR).');
+        }
+
+        return new Recommendation(
+            decision: Decision::SWITCH,
+            reasonCode: DecisionReasonCode::CLEAR_SAVINGS,
+            waitKind: null,
+            suggestedOfferVersionId: $selectedAlternative->offerVersionId()->value(),
+            suggestedOfferSnapshot: $suggestedOfferSnapshot,
+            estimatedImpact: $impact,
+            mainExplanation: 'Se detecta una alternativa con ahorro claro y encaje suficiente.',
+            tradeOffs: [],
+            risks: [],
+            uncertaintySummary: null,
+            analysisLimitations: $analysisLimitations,
             recommendedReviewMoment: null,
             reviewTrigger: null,
         );
