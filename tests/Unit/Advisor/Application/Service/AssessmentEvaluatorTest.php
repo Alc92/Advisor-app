@@ -15,6 +15,7 @@ use App\Advisor\Domain\Enum\AnalysisLimitationCode;
 use App\Advisor\Domain\Enum\CommitmentStatus;
 use App\Advisor\Domain\Enum\DataProvenance;
 use App\Advisor\Domain\Enum\Decision;
+use App\Advisor\Domain\Enum\DecisionDegradationCode;
 use App\Advisor\Domain\Enum\DecisionReasonCode;
 use App\Advisor\Domain\Enum\EvaluationMode;
 use App\Advisor\Domain\Enum\FiberNeedBand;
@@ -163,6 +164,103 @@ final class AssessmentEvaluatorTest extends TestCase
         self::assertSame(EvaluationMode::EVALUATED_NORMAL, $result->evaluationTrace()?->evaluationMode());
     }
 
+    public function test_it_returns_wait_for_unknown_commitment_when_switch_candidate_exists(): void
+    {
+        $result = $this->evaluator()->evaluate(
+            $this->snapshotForMobile(
+                MobileUsageBand::HIGH,
+                '50.00',
+                CommitmentStatus::UNKNOWN,
+                null,
+                false,
+                PromotionStatus::NOT_ACTIVE,
+            ),
+            $this->catalogWith($this->mobileOffer('offer-unknown-commitment', 'Provider Uncertain', 'Mobile Uncertain', '30.00', MobileUsageBand::HIGH)),
+        );
+
+        $recommendation = $result->recommendation();
+
+        self::assertSame(Decision::WAIT, $recommendation->decision());
+        self::assertSame(DecisionReasonCode::WAIT_DUE_TO_UNCERTAINTY, $recommendation->reasonCode());
+        self::assertSame(WaitKind::UNCERTAINTY_OR_MISSING_INFO, $recommendation->waitKind());
+        self::assertSame(ReviewTrigger::CHECK_MISSING_INFORMATION, $recommendation->reviewTrigger());
+        self::assertNull($recommendation->suggestedOfferVersionId());
+        self::assertNull($recommendation->suggestedOfferSnapshot());
+    }
+
+    public function test_it_returns_wait_for_unknown_promotion_when_switch_candidate_exists(): void
+    {
+        $result = $this->evaluator()->evaluate(
+            $this->snapshotForMobile(
+                MobileUsageBand::HIGH,
+                '50.00',
+                CommitmentStatus::NO,
+                null,
+                false,
+                PromotionStatus::UNKNOWN,
+            ),
+            $this->catalogWith($this->mobileOffer('offer-unknown-promotion', 'Provider Uncertain', 'Mobile Uncertain', '30.00', MobileUsageBand::HIGH)),
+        );
+
+        $recommendation = $result->recommendation();
+
+        self::assertSame(Decision::WAIT, $recommendation->decision());
+        self::assertSame(DecisionReasonCode::WAIT_DUE_TO_UNCERTAINTY, $recommendation->reasonCode());
+        self::assertSame(WaitKind::UNCERTAINTY_OR_MISSING_INFO, $recommendation->waitKind());
+        self::assertSame(ReviewTrigger::CHECK_MISSING_INFORMATION, $recommendation->reviewTrigger());
+        self::assertNull($recommendation->suggestedOfferVersionId());
+        self::assertNull($recommendation->suggestedOfferSnapshot());
+    }
+
+    public function test_it_keeps_stay_for_relevant_uncertainty_when_no_offer_has_sufficient_improvement(): void
+    {
+        $result = $this->evaluator()->evaluate(
+            $this->snapshotForMobile(
+                MobileUsageBand::HIGH,
+                '50.00',
+                CommitmentStatus::UNKNOWN,
+                null,
+                false,
+                PromotionStatus::NOT_ACTIVE,
+            ),
+            $this->catalogWith($this->mobileOffer('offer-stay-uncertain', 'Provider Stay', 'Mobile Stay', '48.00', MobileUsageBand::HIGH)),
+        );
+
+        $recommendation = $result->recommendation();
+
+        self::assertSame(Decision::STAY, $recommendation->decision());
+        self::assertSame(DecisionReasonCode::NO_CLEAR_IMPROVEMENT, $recommendation->reasonCode());
+        self::assertNull($recommendation->waitKind());
+        self::assertNull($recommendation->reviewTrigger());
+        self::assertNull($recommendation->suggestedOfferVersionId());
+        self::assertNull($recommendation->suggestedOfferSnapshot());
+    }
+
+    public function test_it_marks_trace_as_degraded_by_relevant_uncertainty(): void
+    {
+        $result = $this->evaluator()->evaluate(
+            $this->snapshotForMobile(
+                MobileUsageBand::HIGH,
+                '50.00',
+                CommitmentStatus::UNKNOWN,
+                null,
+                false,
+                PromotionStatus::NOT_ACTIVE,
+            ),
+            $this->catalogWith($this->mobileOffer('offer-trace-uncertain', 'Provider Trace', 'Mobile Trace', '30.00', MobileUsageBand::HIGH)),
+        );
+
+        $trace = $result->evaluationTrace();
+
+        self::assertNotNull($trace);
+        self::assertSame(EvaluationMode::EVALUATED_DEGRADED, $trace->evaluationMode());
+        self::assertContains(DecisionDegradationCode::RELEVANT_UNCERTAINTY, $trace->decisionDegradationCodes());
+        self::assertContains(AnalysisLimitationCode::MISSING_CRITICAL_DATA, $trace->analysisLimitations());
+        self::assertNotNull($trace->selectedOfferVersionId());
+        self::assertNotNull($trace->selectedFitLevel());
+        self::assertNotNull($trace->selectedFriction());
+    }
+
     public function test_it_does_not_assign_high_fit_to_asymmetric_offer_for_aggregated_usage(): void
     {
         $result = $this->evaluator()->evaluate(
@@ -255,6 +353,7 @@ final class AssessmentEvaluatorTest extends TestCase
         CommitmentStatus $commitmentStatus = CommitmentStatus::NO,
         ?ApproximateDate $commitmentEndApprox = null,
         bool $multipleResidencesDetected = false,
+        PromotionStatus $promotionStatus = PromotionStatus::NOT_ACTIVE,
     ): AssessmentInputSnapshot {
         $currentSituation = new CurrentSituation(
             'Provider A',
@@ -265,7 +364,7 @@ final class AssessmentEvaluatorTest extends TestCase
             null,
             $commitmentStatus,
             $commitmentEndApprox,
-            PromotionStatus::NOT_ACTIVE,
+            $promotionStatus,
             null,
             false,
             $multipleResidencesDetected,
