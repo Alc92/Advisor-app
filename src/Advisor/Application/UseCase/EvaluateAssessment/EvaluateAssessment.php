@@ -7,7 +7,9 @@ namespace App\Advisor\Application\UseCase\EvaluateAssessment;
 use App\Advisor\Application\Command\EvaluateAssessment\EvaluateAssessmentCommand;
 use App\Advisor\Application\Port\AssessmentEvaluationPort;
 use App\Advisor\Application\Port\AssessmentRepository;
+use App\Advisor\Application\Port\PublishedCatalogPort;
 use App\Advisor\Application\ViewModel\AssessmentResultViewModel;
+use App\Advisor\Domain\Assessment\AdditionalConditionProfile;
 use App\Advisor\Domain\Assessment\Assessment;
 use App\Advisor\Domain\Assessment\AssessmentInputSnapshot;
 use App\Advisor\Domain\Assessment\CurrentSituation;
@@ -16,9 +18,13 @@ use App\Advisor\Domain\Enum\CommitmentStatus;
 use App\Advisor\Domain\Enum\DataProvenance;
 use App\Advisor\Domain\Enum\EvaluationMode;
 use App\Advisor\Domain\Enum\FiberNeedBand;
+use App\Advisor\Domain\Enum\FiberSpeedBandCurrent;
+use App\Advisor\Domain\Enum\MobileDataAdequacyLevel;
 use App\Advisor\Domain\Enum\MobileUsageBand;
+use App\Advisor\Domain\Enum\MobileUsageDistribution;
 use App\Advisor\Domain\Enum\ProductType;
 use App\Advisor\Domain\Enum\PromotionStatus;
+use App\Advisor\Domain\Enum\TriState;
 use App\Advisor\Domain\Enum\UserPreference;
 use App\Advisor\Domain\ValueObject\ApproximateDate;
 use App\Advisor\Domain\ValueObject\AssessmentId;
@@ -28,12 +34,38 @@ use App\Shared\Application\Port\IdGenerator;
 
 final readonly class EvaluateAssessment
 {
+    private AssessmentEvaluationPort $assessmentEvaluation;
+    private ?PublishedCatalogPort $publishedCatalogs;
+    private AssessmentRepository $assessments;
+    private Clock $clock;
+    private IdGenerator $idGenerator;
+
     public function __construct(
-        private AssessmentEvaluationPort $assessmentEvaluation,
-        private AssessmentRepository $assessments,
-        private Clock $clock,
-        private IdGenerator $idGenerator,
+        AssessmentEvaluationPort $assessmentEvaluation,
+        PublishedCatalogPort|AssessmentRepository $publishedCatalogs,
+        AssessmentRepository|Clock $assessments,
+        Clock|IdGenerator $clock,
+        ?IdGenerator $idGenerator = null,
     ) {
+        $this->assessmentEvaluation = $assessmentEvaluation;
+
+        if ($publishedCatalogs instanceof AssessmentRepository && $assessments instanceof Clock && $clock instanceof IdGenerator) {
+            $this->publishedCatalogs = null;
+            $this->assessments = $publishedCatalogs;
+            $this->clock = $assessments;
+            $this->idGenerator = $clock;
+
+            return;
+        }
+
+        if (!$publishedCatalogs instanceof PublishedCatalogPort || !$assessments instanceof AssessmentRepository || !$clock instanceof Clock || $idGenerator === null) {
+            throw new \InvalidArgumentException('Invalid EvaluateAssessment dependencies.');
+        }
+
+        $this->publishedCatalogs = $publishedCatalogs;
+        $this->assessments = $assessments;
+        $this->clock = $clock;
+        $this->idGenerator = $idGenerator;
     }
 
     public function __invoke(EvaluateAssessmentCommand $command): AssessmentResultViewModel
@@ -42,13 +74,21 @@ final readonly class EvaluateAssessment
         $assessmentId = AssessmentId::fromUuid($this->idGenerator->generate());
         $assessment = Assessment::createEphemeral($assessmentId, $snapshot, $this->clock->now());
 
-        $result = $this->assessmentEvaluation->evaluate($snapshot, null);
+        $catalog = $snapshot->minimumDataForEvaluationIsMet() && $this->publishedCatalogs !== null
+            ? $this->publishedCatalogs->getCurrentPublishedCatalog()
+            : null;
+
+        $result = $this->assessmentEvaluation->evaluate($snapshot, $catalog);
+        $evaluationMode = $result->evaluationTrace()?->evaluationMode()
+            ?? ($snapshot->minimumDataForEvaluationIsMet()
+                ? EvaluationMode::EVALUATED_NORMAL
+                : EvaluationMode::NOT_EVALUATED_MINIMUM_NOT_MET);
 
         $assessment->markAsEvaluated(
             $result,
-            EvaluationMode::EVALUATED_NORMAL,
-            'evaluate_assessment_skeleton',
-            null,
+            $evaluationMode,
+            'gate1_assessment_evaluation',
+            $catalog?->publicationVersion(),
             $this->clock->now(),
         );
 
@@ -98,12 +138,48 @@ final readonly class EvaluateAssessment
             DataProvenance::from($command->dataProvenance),
         );
 
+        $additionalConditionProfile = $this->buildAdditionalConditionProfile($command->additionalConditionProfile);
+
         return new AssessmentInputSnapshot(
             $currentSituation,
             UserPreference::from($command->userPreference),
-            null,
-            InputQuality::fromCurrentSituation($currentSituation),
+            $additionalConditionProfile,
+            InputQuality::fromCurrentSituation($currentSituation, $additionalConditionProfile),
         );
+    }
+
+    /**
+     * @param array<string, mixed>|null $profile
+     */
+    private function buildAdditionalConditionProfile(?array $profile): ?AdditionalConditionProfile
+    {
+        if ($profile === null || $profile === []) {
+            return null;
+        }
+
+        $additionalConditionProfile = new AdditionalConditionProfile(
+            $this->enumFromProfile($profile, 'fiberSpeedBandCurrent', FiberSpeedBandCurrent::class),
+            $this->enumFromProfile($profile, 'mobileDataAdequacyLevel', MobileDataAdequacyLevel::class),
+            $this->enumFromProfile($profile, 'mobileUsageDistribution', MobileUsageDistribution::class),
+            $this->enumFromProfile($profile, 'tvImportance', TriState::class),
+        );
+
+        return $additionalConditionProfile->isEmpty() ? null : $additionalConditionProfile;
+    }
+
+    /**
+     * @template T of \BackedEnum
+     * @param array<string, mixed> $profile
+     * @param class-string<T> $enumClass
+     * @return T|null
+     */
+    private function enumFromProfile(array $profile, string $key, string $enumClass): ?\BackedEnum
+    {
+        if (!array_key_exists($key, $profile) || $profile[$key] === null || $profile[$key] === '') {
+            return null;
+        }
+
+        return $enumClass::from($profile[$key]);
     }
 
     private function buildApproximateDate(?int $year, ?int $month): ?ApproximateDate
