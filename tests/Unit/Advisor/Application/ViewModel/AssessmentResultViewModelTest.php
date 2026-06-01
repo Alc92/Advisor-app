@@ -23,6 +23,10 @@ final class AssessmentResultViewModelTest extends TestCase
                 'commercialName' => 'Plan Plus',
                 'monthlyPriceAmount' => '39.99',
                 'monthlyPriceCurrency' => 'EUR',
+                'fiberSpeedMbps' => 600,
+                'mobileDataDisplay' => '80GB',
+                'mobileLinesIncluded' => 2,
+                'tvIncluded' => true,
             ],
             tradeOffs: ['12-month commitment'],
             risks: ['Price may change after promo'],
@@ -39,6 +43,10 @@ final class AssessmentResultViewModelTest extends TestCase
         self::assertSame('Plan Plus', $viewModel->suggestedOffer['commercialName']);
         self::assertSame('39.99', $viewModel->suggestedOffer['monthlyPriceAmount']);
         self::assertSame('EUR', $viewModel->suggestedOffer['monthlyPriceCurrency']);
+        self::assertSame(600, $viewModel->suggestedOffer['fiberSpeedMbps']);
+        self::assertSame('80GB', $viewModel->suggestedOffer['mobileDataDisplay']);
+        self::assertSame(2, $viewModel->suggestedOffer['mobileLinesIncluded']);
+        self::assertTrue($viewModel->suggestedOffer['tvIncluded']);
         self::assertArrayNotHasKey('productName', $viewModel->suggestedOffer);
     }
 

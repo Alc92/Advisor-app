@@ -15,7 +15,7 @@ final readonly class AssessmentResultViewModel
     public string $headline;
     public string $mainExplanation;
     public ?string $estimatedImpactSummary;
-    /** @var array{provider:string, commercialName:string, monthlyPriceAmount:string, monthlyPriceCurrency:string}|null */
+    /** @var array{provider:string, commercialName:string, monthlyPriceAmount:string, monthlyPriceCurrency:string, fiberSpeedMbps:int|null, mobileDataDisplay:string|null, mobileLinesIncluded:int, tvIncluded:bool}|null */
     public ?array $suggestedOffer;
     /** @var list<string> */
     public array $tradeOffs;
@@ -30,7 +30,7 @@ final readonly class AssessmentResultViewModel
     public ?string $reviewTrigger;
 
     /**
-     * @param array{provider:string, commercialName:string, monthlyPriceAmount:string, monthlyPriceCurrency:string}|null $suggestedOffer
+     * @param array{provider:string, commercialName:string, monthlyPriceAmount:string, monthlyPriceCurrency:string, fiberSpeedMbps:int|null, mobileDataDisplay:string|null, mobileLinesIncluded:int, tvIncluded:bool}|null $suggestedOffer
      * @param list<string> $tradeOffs
      * @param list<string> $risks
      * @param list<string> $analysisLimitations
@@ -70,8 +70,8 @@ final readonly class AssessmentResultViewModel
     }
 
     /**
-     * @param array{provider:string, commercialName:string, monthlyPriceAmount:string, monthlyPriceCurrency:string}|null $suggestedOffer
-     * @return array{provider:string, commercialName:string, monthlyPriceAmount:string, monthlyPriceCurrency:string}|null
+     * @param array{provider:string, commercialName:string, monthlyPriceAmount:string, monthlyPriceCurrency:string, fiberSpeedMbps:int|null, mobileDataDisplay:string|null, mobileLinesIncluded:int, tvIncluded:bool}|null $suggestedOffer
+     * @return array{provider:string, commercialName:string, monthlyPriceAmount:string, monthlyPriceCurrency:string, fiberSpeedMbps:int|null, mobileDataDisplay:string|null, mobileLinesIncluded:int, tvIncluded:bool}|null
      */
     private function validateSuggestedOffer(?array $suggestedOffer): ?array
     {
@@ -79,19 +79,37 @@ final readonly class AssessmentResultViewModel
             return null;
         }
 
-        $expectedKeys = ['provider', 'commercialName', 'monthlyPriceAmount', 'monthlyPriceCurrency'];
+        $expectedKeys = ['provider', 'commercialName', 'monthlyPriceAmount', 'monthlyPriceCurrency', 'fiberSpeedMbps', 'mobileDataDisplay', 'mobileLinesIncluded', 'tvIncluded'];
         $actualKeys = array_keys($suggestedOffer);
         sort($expectedKeys);
         sort($actualKeys);
 
         if ($actualKeys !== $expectedKeys) {
-            throw new InvalidArgumentException('suggestedOffer must contain exactly provider, commercialName, monthlyPriceAmount, monthlyPriceCurrency.');
+            throw new InvalidArgumentException('suggestedOffer has invalid keys.');
         }
 
-        foreach ($suggestedOffer as $value) {
-            if (!is_string($value)) {
-                throw new InvalidArgumentException('suggestedOffer values must be strings.');
-            }
+        if (!is_string($suggestedOffer['provider'])
+            || !is_string($suggestedOffer['commercialName'])
+            || !is_string($suggestedOffer['monthlyPriceAmount'])
+            || !is_string($suggestedOffer['monthlyPriceCurrency'])
+        ) {
+            throw new InvalidArgumentException('suggestedOffer string fields are invalid.');
+        }
+
+        if ($suggestedOffer['fiberSpeedMbps'] !== null && !is_int($suggestedOffer['fiberSpeedMbps'])) {
+            throw new InvalidArgumentException('suggestedOffer fiberSpeedMbps must be int|null.');
+        }
+
+        if ($suggestedOffer['mobileDataDisplay'] !== null && !is_string($suggestedOffer['mobileDataDisplay'])) {
+            throw new InvalidArgumentException('suggestedOffer mobileDataDisplay must be string|null.');
+        }
+
+        if (!is_int($suggestedOffer['mobileLinesIncluded'])) {
+            throw new InvalidArgumentException('suggestedOffer mobileLinesIncluded must be int.');
+        }
+
+        if (!is_bool($suggestedOffer['tvIncluded'])) {
+            throw new InvalidArgumentException('suggestedOffer tvIncluded must be bool.');
         }
 
         return $suggestedOffer;
