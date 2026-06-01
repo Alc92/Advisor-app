@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Unit\Advisor\Domain\Rule;
 
 use App\Advisor\Domain\Assessment\EstimatedImpact;
+use App\Advisor\Domain\Assessment\RecommendedOfferSnapshot;
 use App\Advisor\Domain\Enum\ChangeFriction;
 use App\Advisor\Domain\Enum\Decision;
 use App\Advisor\Domain\Enum\DecisionReasonCode;
@@ -266,6 +267,38 @@ final class SwitchRecommendationBuilderTest extends TestCase
             [],
             [],
         );
+    }
+
+    public function test_it_builds_switch_recommendation_from_snapshot_without_catalog_entities(): void
+    {
+        $builder = new SwitchRecommendationBuilder();
+        $offerVersionId = TelecomOfferVersionId::fromUuid(Uuid::v4());
+        $alternative = $this->buildAlternative(
+            $offerVersionId,
+            FitLevel::HIGH,
+            '30',
+            ImpactType::MONTHLY_SAVINGS,
+            ChangeFriction::LOW,
+            false,
+        );
+        $snapshot = new RecommendedOfferSnapshot(
+            provider: 'Provider Snapshot',
+            commercialName: 'Plan Snapshot',
+            monthlyPrice: new Money('29.99', 'EUR'),
+            mobileLinesIncluded: 1,
+            tvIncluded: false,
+            fiberSpeedMbps: 300,
+            mobileDataDisplay: '30 GB',
+        );
+
+        $recommendation = $builder->buildSwitchFromSnapshot($alternative, $snapshot);
+
+        self::assertSame(Decision::SWITCH, $recommendation->decision());
+        self::assertSame(DecisionReasonCode::CLEAR_SAVINGS, $recommendation->reasonCode());
+        self::assertSame($offerVersionId->value(), $recommendation->suggestedOfferVersionId());
+        self::assertSame($snapshot, $recommendation->suggestedOfferSnapshot());
+        self::assertNull($recommendation->waitKind());
+        self::assertNull($recommendation->reviewTrigger());
     }
 
     private function buildOffer(TelecomOfferId $id, string $provider, string $commercialName): TelecomOffer
