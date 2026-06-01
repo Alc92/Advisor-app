@@ -161,7 +161,7 @@ Evitar commits que mezclen:
 Para generar un zip limpio del estado versionado del repositorio, sin `vendor/`, `.git/`, cachés ni archivos locales:
 
 ```bash
-git archive --format=zip --prefix=advisor-app/ -o advisor-app-clean.zip HEAD
+git archive --format=zip --prefix=advisor-app/ -o ../advisor-app-clean.zip HEAD
 ```
 
 Nota: este comando solo incluye lo que está en el commit actual (`HEAD`). No incluye cambios sin commit, aunque estén modificados en la carpeta local.

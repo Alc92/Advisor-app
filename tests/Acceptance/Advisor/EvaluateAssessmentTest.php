@@ -96,7 +96,10 @@ final class EvaluateAssessmentTest extends TestCase
         self::assertSame('WAIT_DUE_TO_UNCERTAINTY', $result->reasonCode);
         self::assertSame('UNCERTAINTY_OR_MISSING_INFO', $result->waitKind);
         self::assertSame('CHECK_MISSING_INFORMATION', $result->reviewTrigger);
+        self::assertNotEmpty($result->uncertaintySummary);
+        self::assertNotEmpty($result->analysisLimitations);
         self::assertNull($result->suggestedOffer);
+        self::assertNotSame(Decision::SWITCH->value, $result->decision);
     }
 
     public function test_it_returns_wait_for_unknown_promotion_using_real_evaluator(): void
@@ -115,7 +118,10 @@ final class EvaluateAssessmentTest extends TestCase
         self::assertSame('WAIT_DUE_TO_UNCERTAINTY', $result->reasonCode);
         self::assertSame('UNCERTAINTY_OR_MISSING_INFO', $result->waitKind);
         self::assertSame('CHECK_MISSING_INFORMATION', $result->reviewTrigger);
+        self::assertNotEmpty($result->uncertaintySummary);
+        self::assertNotEmpty($result->analysisLimitations);
         self::assertNull($result->suggestedOffer);
+        self::assertNotSame(Decision::SWITCH->value, $result->decision);
     }
 
     public function test_it_does_not_query_catalog_when_minimum_input_is_not_met(): void
