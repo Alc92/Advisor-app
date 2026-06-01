@@ -34,38 +34,13 @@ use App\Shared\Application\Port\IdGenerator;
 
 final readonly class EvaluateAssessment
 {
-    private AssessmentEvaluationPort $assessmentEvaluation;
-    private ?PublishedCatalogPort $publishedCatalogs;
-    private AssessmentRepository $assessments;
-    private Clock $clock;
-    private IdGenerator $idGenerator;
-
     public function __construct(
-        AssessmentEvaluationPort $assessmentEvaluation,
-        PublishedCatalogPort|AssessmentRepository $publishedCatalogs,
-        AssessmentRepository|Clock $assessments,
-        Clock|IdGenerator $clock,
-        ?IdGenerator $idGenerator = null,
+        private AssessmentEvaluationPort $assessmentEvaluation,
+        private PublishedCatalogPort $publishedCatalogs,
+        private AssessmentRepository $assessments,
+        private Clock $clock,
+        private IdGenerator $idGenerator,
     ) {
-        $this->assessmentEvaluation = $assessmentEvaluation;
-
-        if ($publishedCatalogs instanceof AssessmentRepository && $assessments instanceof Clock && $clock instanceof IdGenerator) {
-            $this->publishedCatalogs = null;
-            $this->assessments = $publishedCatalogs;
-            $this->clock = $assessments;
-            $this->idGenerator = $clock;
-
-            return;
-        }
-
-        if (!$publishedCatalogs instanceof PublishedCatalogPort || !$assessments instanceof AssessmentRepository || !$clock instanceof Clock || $idGenerator === null) {
-            throw new \InvalidArgumentException('Invalid EvaluateAssessment dependencies.');
-        }
-
-        $this->publishedCatalogs = $publishedCatalogs;
-        $this->assessments = $assessments;
-        $this->clock = $clock;
-        $this->idGenerator = $idGenerator;
     }
 
     public function __invoke(EvaluateAssessmentCommand $command): AssessmentResultViewModel
@@ -74,7 +49,7 @@ final readonly class EvaluateAssessment
         $assessmentId = AssessmentId::fromUuid($this->idGenerator->generate());
         $assessment = Assessment::createEphemeral($assessmentId, $snapshot, $this->clock->now());
 
-        $catalog = $snapshot->minimumDataForEvaluationIsMet() && $this->publishedCatalogs !== null
+        $catalog = $snapshot->minimumDataForEvaluationIsMet()
             ? $this->publishedCatalogs->getCurrentPublishedCatalog()
             : null;
 

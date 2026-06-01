@@ -19,6 +19,7 @@ use App\Advisor\Domain\Enum\WaitKind;
 use App\Advisor\Domain\ValueObject\AssessmentId;
 use App\Advisor\Domain\ValueObject\Money;
 use App\Tests\Support\Advisor\FakeAssessmentEvaluationPort;
+use App\Tests\Support\Advisor\FakePublishedCatalogPort;
 use App\Tests\Support\Advisor\InMemoryAssessmentRepository;
 use App\Tests\Support\Shared\FixedClock;
 use App\Tests\Support\Shared\FixedIdGenerator;
@@ -120,6 +121,7 @@ final class EvaluateAssessmentTest extends TestCase
     ): EvaluateAssessment {
         return new EvaluateAssessment(
             $evaluationPort,
+            new FakePublishedCatalogPort(),
             $repository,
             new FixedClock(new DateTimeImmutable('2026-01-01 10:00:00')),
             new FixedIdGenerator(Uuid::fromString(self::ASSESSMENT_UUID)),
