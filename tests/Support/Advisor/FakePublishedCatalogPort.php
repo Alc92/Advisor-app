@@ -12,11 +12,16 @@ final class FakePublishedCatalogPort implements PublishedCatalogPort
 {
     private int $calls = 0;
 
+    public function __construct(
+        private ?PublishedCatalogForEvaluation $catalog = null,
+    ) {
+    }
+
     public function getCurrentPublishedCatalog(): PublishedCatalogForEvaluation
     {
         ++$this->calls;
 
-        return Gate1PublishedCatalogFixture::publishedCatalog();
+        return $this->catalog ?? Gate1PublishedCatalogFixture::publishedCatalog();
     }
 
     public function calls(): int

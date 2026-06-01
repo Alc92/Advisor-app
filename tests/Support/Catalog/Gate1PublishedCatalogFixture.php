@@ -127,4 +127,94 @@ final class Gate1PublishedCatalogFixture
             ],
         );
     }
+
+    public static function clearSavingsCatalog(): PublishedCatalogForEvaluation
+    {
+        return new PublishedCatalogForEvaluation(
+            'catpub_gate1_clear_savings_001',
+            'gate1-clear-savings',
+            [
+                new PublishedOfferVersionForEvaluation(
+                    'ofv_gate1_clear_savings_mobile_v1',
+                    'Telco Savings',
+                    'Móvil Ahorro 100GB',
+                    new Money('30.00', 'EUR'),
+                    1,
+                    false,
+                    null,
+                    '100 GB',
+                    ProductType::MOBILE,
+                    null,
+                    MobileUsageBand::HIGH,
+                    false,
+                    false,
+                ),
+            ],
+        );
+    }
+
+    public static function noClearImprovementCatalog(): PublishedCatalogForEvaluation
+    {
+        return new PublishedCatalogForEvaluation(
+            'catpub_gate1_no_improvement_001',
+            'gate1-no-improvement',
+            [
+                new PublishedOfferVersionForEvaluation(
+                    'ofv_gate1_no_improvement_mobile_v1',
+                    'Telco Similar',
+                    'Móvil Similar 100GB',
+                    new Money('48.00', 'EUR'),
+                    1,
+                    false,
+                    null,
+                    '100 GB',
+                    ProductType::MOBILE,
+                    null,
+                    MobileUsageBand::HIGH,
+                    false,
+                    false,
+                ),
+            ],
+        );
+    }
+
+    public static function asymmetricOfferCatalog(): PublishedCatalogForEvaluation
+    {
+        return new PublishedCatalogForEvaluation(
+            'catpub_gate1_asymmetric_001',
+            'gate1-asymmetric',
+            [
+                new PublishedOfferVersionForEvaluation(
+                    'ofv_gate1_asym_bundle_v1',
+                    'Telco Asymmetric',
+                    'Fibra 600 + 3 lineas asimetricas',
+                    new Money('40.00', 'EUR'),
+                    3,
+                    false,
+                    600,
+                    '50GB + 10GB + 10GB',
+                    ProductType::FIBER_MOBILE,
+                    FiberCapacityBand::HIGH,
+                    MobileUsageBand::HIGH,
+                    true,
+                    true,
+                ),
+                new PublishedOfferVersionForEvaluation(
+                    'ofv_gate1_sym_bundle_v1',
+                    'Telco Symmetric',
+                    'Fibra 600 + 2 lineas 100GB',
+                    new Money('42.00', 'EUR'),
+                    2,
+                    false,
+                    600,
+                    '100 GB',
+                    ProductType::FIBER_MOBILE,
+                    FiberCapacityBand::HIGH,
+                    MobileUsageBand::HIGH,
+                    true,
+                    false,
+                ),
+            ],
+        );
+    }
 }
