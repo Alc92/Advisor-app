@@ -9,6 +9,7 @@ use App\Advisor\Application\Port\AssessmentEvaluationPort;
 use App\Advisor\Application\Port\AssessmentRepository;
 use App\Advisor\Application\Port\PublishedCatalogPort;
 use App\Advisor\Application\ViewModel\AssessmentResultViewModel;
+use App\Advisor\Application\ViewModel\AssessmentResultViewModelMapper;
 use App\Advisor\Domain\Assessment\AdditionalConditionProfile;
 use App\Advisor\Domain\Assessment\Assessment;
 use App\Advisor\Domain\Assessment\AssessmentInputSnapshot;
@@ -69,30 +70,7 @@ final readonly class EvaluateAssessment
 
         $this->assessments->save($assessment);
 
-        $decision = $result->recommendation()->decision()->value;
-        $headline = match ($decision) {
-            'SWITCH' => 'Te conviene cambiar',
-            'WAIT' => 'Ahora mismo te conviene esperar',
-            'STAY' => 'Te conviene mantener tu tarifa actual',
-            default => 'Resultado de evaluación',
-        };
-
-        return new AssessmentResultViewModel(
-            assessmentId: $assessmentId->toString(),
-            decision: $decision,
-            reasonCode: $result->recommendation()->reasonCode()->value,
-            headline: $headline,
-            mainExplanation: $result->recommendation()->mainExplanation(),
-            estimatedImpactSummary: null,
-            suggestedOffer: null,
-            tradeOffs: [],
-            risks: [],
-            uncertaintySummary: null,
-            analysisLimitations: [],
-            waitKind: null,
-            recommendedReviewMoment: null,
-            reviewTrigger: null,
-        );
+        return (new AssessmentResultViewModelMapper())->map($assessment, $result);
     }
 
     private function buildSnapshot(EvaluateAssessmentCommand $command): AssessmentInputSnapshot
